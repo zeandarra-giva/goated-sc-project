@@ -231,7 +231,7 @@ The current user's own entries get a 2px inset `--accent` outline (`.mine`).
 
 | Context | Value |
 |---|---|
-| Page side padding | 32px (`.page`), max width 1480px; 16px gutter on phones |
+| Page side padding | 32px (`.page`), max width `--page-max` (1480 / 1680 / 1920px); 16px gutter at ≤ 900px |
 | Gap between sections and cards | **18px** (`.page`, `.grid`) |
 | Card header | `18px 20px 14px` padding, then a **1px `--line` divider**, then 16px before the body |
 | Card body | `0 20px 20px` |
@@ -254,9 +254,14 @@ The current user's own entries get a 2px inset `--accent` outline (`.mine`).
 ### Breakpoints
 | Width | Change |
 |---|---|
-| ≤ 1100px | Asymmetric grids stack |
-| ≤ 900px | Sidebar becomes a horizontal top bar; group labels hidden; profile menu opens as a fixed sheet |
+| ≥ 2300px | `--page-max` 1920px |
+| ≥ 1800px | `--page-max` 1680px (default 1480px). Above 900px the header's padding lines its content up with the page |
+| ≤ 1100px | Asymmetric grids stack; KPI rows become 2 columns (561–1100px) |
+| ≤ 900px | The sidebar becomes a top bar: brand and profile on row 1, a horizontally scrolling nav strip on row 2 that auto-scrolls to the current page. The header wraps and the ServiceNow pill scrolls sideways. Page padding is 16px and h1 is 32px |
 | ≤ 720px | Calendar compacts: bar labels hidden, smaller titles |
+| ≤ 560px (phones) | 1-column KPIs; h1 26px; the breadcrumb shows only the current page; card padding 16px; assignment rows reflow to name + status / bar / counts; modals and drawers go almost full width |
+
+Rules: no page may scroll sideways at 375px or wider. Wide tables scroll inside their own `.tbl-wrap`. Check new layouts at 375, 768, 1440 and 2560 px.
 
 ### Hierarchy on a page
 1. **Page head:** h1 (44) + one-line description (15, `--ink-2`). No icon.

@@ -47,6 +47,12 @@ export default function App() {
   const signIn = (role) => { dispatch({ type: 'role', role }); writeSession(role); setSession(role); setSignedOut(false); nav('home') }
   const signOut = () => { writeSession(null); setSession(null); setSignedOut(true) }
   const page = PAGES.find((p) => p.id === route.page)
+  // On phones the nav is a horizontal strip; keep the current page's button in view.
+  useEffect(() => {
+    const strip = document.querySelector('.rail-nav')
+    const cur = strip?.querySelector('[aria-current="page"]')
+    if (strip && cur && strip.scrollWidth > strip.clientWidth) strip.scrollLeft = cur.offsetLeft - strip.offsetLeft - 12
+  }, [route.page, session])
   if (!session) return <SignIn onSignIn={signIn} signedOut={signedOut} />
   const breached = state.tickets.filter((t) => slaInfo(t, state.now).status === 'Breached').length
 
@@ -61,6 +67,7 @@ export default function App() {
               <div className="brand-sub">Solution Center Hub</div>
             </div>
           </div>
+          <div className="rail-nav">
           {[['General', ['home', 'explorer', 'reports']], ['Tools', ['team']]].map(([group, ids]) => (
             <div key={group} style={{ display: 'contents' }}>
               <div className="rail-group">{group}</div>
@@ -73,6 +80,7 @@ export default function App() {
               ))}
             </div>
           ))}
+          </div>
           <div className="rail-foot" />
           <ProfileMenu active={route.page === 'settings'} onSettings={() => nav('settings')} onLogout={signOut} />
         </nav>
@@ -114,7 +122,7 @@ function Header({ page }) {
   const now = new Date(state.now)
   return (
     <header className="header">
-      <nav className="crumb" aria-label="Breadcrumb"><span className="crumb-back" aria-hidden="true"><Icon name={page.icon} size={16} /></span><span>Scope</span><Icon name="arrowR" size={14} /><b>{page.label}</b></nav>
+      <nav className="crumb" aria-label="Breadcrumb"><span className="crumb-back" aria-hidden="true"><Icon name={page.icon} size={16} /></span><span className="crumb-root">Scope</span><span className="crumb-sep"><Icon name="arrowR" size={14} /></span><b>{page.label}</b></nav>
       <div className="header-center"><SnowStatus /></div>
       <div className="header-right">
       <div className="date-chip" title="Local time">
@@ -151,8 +159,8 @@ function SnowStatus() {
       <button className="snow-pill" onClick={() => setOpen(!open)} aria-expanded={open}>
         <span className="snow-ic"><Icon name="refresh" size={15} /></span>
         <b>ServiceNow</b>
-        <span className="row tight muted"><span className="dot live" />Live · {ago < 60 ? `${ago}s` : `${Math.round(ago / 60)}m`} ago</span>
-        <span className="muted small">In:</span>
+        <span className="row tight muted snow-live"><span className="dot live" />Live · {ago < 60 ? `${ago}s` : `${Math.round(ago / 60)}m`} ago</span>
+        <span className="muted small snow-in">In:</span>
         <span className="dash-chip">{open_} open</span>
         <span className="dash-chip">P1 {p1}</span>
         <span className="dash-chip">{unassigned} waiting</span>

@@ -155,19 +155,19 @@ function AssignmentCard() {
       <div className="card-b stack lg">
         <div className="stack" style={{ gap: 10 }}>
           {rows.map((r) => (
-            <div key={r.a.id} className="row" style={{ flexWrap: 'nowrap', opacity: r.a.status === 'online' ? 1 : 0.6 }}>
+            <div key={r.a.id} className="load-row" style={{ opacity: r.a.status === 'online' ? 1 : 0.6 }}>
               <span className="avatar sm">{initials(r.a.name)}</span>
-              <span style={{ width: 112, flex: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} className="small">{r.a.name}</span>
-              <div className="hbar-track" style={{ flex: 1, minWidth: 40 }} title={`${r.load} load points`}>
+              <span className="small load-name">{r.a.name}</span>
+              <div className="hbar-track load-bar" title={`${r.load} load points`}>
                 <div className="hbar-fill" style={{ width: `${(r.load / MAX_LOAD_POINTS) * 100}%`, background: r.load >= MAX_LOAD_POINTS * 0.8 ? 'var(--crit)' : 'var(--s7)' }} />
               </div>
-              <span className="num small" style={{ width: 70, textAlign: 'right' }}><b>{r.count}</b> open · {r.load}p</span>
-              <span className="num small muted" style={{ width: 54, textAlign: 'right' }}>{r.today} today</span>
+              <span className="num small load-open"><b>{r.count}</b> open · {r.load}p</span>
+              <span className="num small muted load-today">{r.today} today</span>
               {lead ? (
-                <select className="in sm" aria-label={`${r.a.name} status`} value={r.a.status} onChange={(e) => dispatch({ type: 'analystStatus', id: r.a.id, status: e.target.value })}>
+                <select className="in sm load-status" aria-label={`${r.a.name} status`} value={r.a.status} onChange={(e) => dispatch({ type: 'analystStatus', id: r.a.id, status: e.target.value })}>
                   <option value="online">Online</option><option value="offline">Offline</option>
                 </select>
-              ) : <span className={`pill ${r.a.status === 'online' ? 'good' : 'plain'}`}>{r.a.status}</span>}
+              ) : <span className={`pill load-status ${r.a.status === 'online' ? 'good' : 'plain'}`}>{r.a.status}</span>}
             </div>
           ))}
         </div>

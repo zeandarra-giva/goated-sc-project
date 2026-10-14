@@ -51,7 +51,7 @@ export default function Reports() {
       <div className="row">
         <Seg value={mode} onChange={setMode} options={[{ id: 'insight', label: 'Insights' }, { id: 'compare', label: 'Compare & generate' }]} />
         <span className="spacer" />
-        <span className="pill plain"><Icon name="shield" size={12} />All analysis runs in your browser. No AI, no data leaves the machine.</span>
+        <span className="pill plain wrap"><Icon name="shield" size={12} />All analysis runs in your browser. No AI, no data leaves the machine.</span>
       </div>
       {mode === 'insight' ? (
         <>
