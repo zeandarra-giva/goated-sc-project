@@ -231,7 +231,7 @@ The current user's own entries get a 2px inset `--accent` outline (`.mine`).
 
 | Context | Value |
 |---|---|
-| Page side padding | 32px (`.page`), max width `--page-max` (1480 / 1680 / 1920px); 16px gutter at ≤ 900px |
+| Page side padding | `--page-pad`: 32px, 40px at ≥ 1800px, 48px at ≥ 2300px; 16px at ≤ 900px. **No max width**: content fills the screen at any size, and the header uses the same gutter |
 | Gap between sections and cards | **18px** (`.page`, `.grid`) |
 | Card header | `18px 20px 14px` padding, then a **1px `--line` divider**, then 16px before the body |
 | Card body | `0 20px 20px` |
@@ -254,8 +254,8 @@ The current user's own entries get a 2px inset `--accent` outline (`.mine`).
 ### Breakpoints
 | Width | Change |
 |---|---|
-| ≥ 2300px | `--page-max` 1920px |
-| ≥ 1800px | `--page-max` 1680px (default 1480px). Above 900px the header's padding lines its content up with the page |
+| ≥ 2300px | `--page-pad` 48px |
+| ≥ 1800px | `--page-pad` 40px. Content is never capped; grids stretch to the full width |
 | ≤ 1100px | Asymmetric grids stack; KPI rows become 2 columns (561–1100px) |
 | ≤ 900px | The sidebar becomes a top bar: brand and profile on row 1, a horizontally scrolling nav strip on row 2 that auto-scrolls to the current page. The header wraps and the ServiceNow pill scrolls sideways. Page padding is 16px and h1 is 32px |
 | ≤ 720px | Calendar compacts: bar labels hidden, smaller titles |
