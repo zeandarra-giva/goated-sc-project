@@ -1,5 +1,14 @@
 # Scope: Solution Center Hub (prototype)
 
+```bash
+In actual development:
+1. Checkout to branch first for the service you're trying to integrate to this Frontend Prototype
+2. Every PR should have audits of the implemented and changes made
+3. PR and review from each dev
+4. Push to preview
+5. Present to stakeholder (Agile)
+```
+
 **Scope** is a clickable React prototype of a solution center hub for **team leads** and **analysts**. It covers the live incident queue, fair ticket assignment, ticket resolution, shift scheduling and coverage, reporting and coaching, and a personal password vault.
 
 Everything runs in the browser. All data is generated sample data, and the ServiceNow connection is simulated.
