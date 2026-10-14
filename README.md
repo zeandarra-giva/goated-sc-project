@@ -2,7 +2,7 @@
 
 ```bash
 In actual development:
-1. Checkout to branch first for the service you're trying to integrate to this Frontend Prototype
+1. Checkout to a branch (service/what-service ; feat/what-feature ; fix/what-fix) first for the service you're trying to integrate to this Frontend Prototype
 2. Every PR should have audits of the implemented and changes made
 3. PR and review from each dev
 4. Push to preview
