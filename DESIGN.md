@@ -1,6 +1,6 @@
-# ServiceOps Console: Design System
+# Scope: Design System
 
-This is the source of truth for how the console looks. Every visual value lives in a token in [`src/styles.css`](src/styles.css). Components use tokens and never raw values.
+This is the source of truth for how Scope looks. Every visual value lives in a token in [`src/styles.css`](src/styles.css). Components use tokens and never raw values.
 
 `npm run check:design` enforces the rules in this file, and it runs automatically before every build (`prebuild`). A build fails if a change uses:
 - a raw color outside a token

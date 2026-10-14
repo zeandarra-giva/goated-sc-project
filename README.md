@@ -1,6 +1,6 @@
-# ServiceOps Console (prototype)
+# Scope: Solution Center Hub (prototype)
 
-A clickable React prototype of a service operations console for **team leads** and **analysts**. It covers the live incident queue, fair ticket assignment, ticket resolution, shift scheduling and coverage, reporting and coaching, and a personal password vault.
+**Scope** is a clickable React prototype of a solution center hub for **team leads** and **analysts**. It covers the live incident queue, fair ticket assignment, ticket resolution, shift scheduling and coverage, reporting and coaching, and a personal password vault.
 
 Everything runs in the browser. All data is generated sample data, and the ServiceNow connection is simulated.
 
@@ -21,6 +21,14 @@ The design system (tokens, type scale, colors, spacing, components) is documente
 - **Moving to another machine:** copy the project without `node_modules` and `dist`, then run `npm install`.
 - **Fonts:** Geist and Geist Mono are bundled from `@fontsource` in `src/fonts.css`, so the app needs no internet access to show the right fonts.
 - **Single-file page:** `npm run artifact` builds a single page with the scripts, styles and fonts all inside it (`scripts/inline-artifact.mjs`). It's the version used for sharing.
+
+### Signing in
+
+The app opens on a **Sign in** page.
+- **Continue with SSO:** the production path. It isn't connected in the prototype yet.
+- **Dev Login:** pick **Team lead** (Andrea Santos) or **Analyst** (Paolo Reyes) and sign in with no credentials. It's prototype only; remove it before release.
+
+The session is remembered per browser (`scope-session` in localStorage). **Log out** in the profile menu returns you to the sign-in page.
 
 ### Prototype controls
 
@@ -57,6 +65,7 @@ src/
     Team.jsx             Team Management
     ShiftCalendar.jsx    Day / Week / Month shift calendar and the Home week preview
     Settings.jsx         Account profile
+    SignIn.jsx           Sign in (SSO placeholder + Dev Login)
 scripts/inline-artifact.mjs   builds dist/artifact.html
 ```
 

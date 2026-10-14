@@ -7,7 +7,7 @@ import { Icon } from './ui.jsx'
 // Steps that used to be Home quick actions carry a "Try it" action.
 function steps(lead, first) {
   return [
-    { id: 'welcome', title: `Welcome to ServiceOps, ${first}`, body: lead
+    { id: 'welcome', title: `Welcome to Scope, ${first}`, body: lead
       ? 'A quick tour of how you run the incident queue: live intake, fair assignment, approvals and handovers. Takes about a minute.'
       : 'A quick tour of how you work the queue: your prioritised tickets, resolution steps and handovers. Takes about a minute.' },
     { target: 'snow', title: 'Live from ServiceNow', body: 'Incidents sync from ServiceNow every 30 seconds. The chips show what is open, how many P1s there are and how many tickets are still waiting for an analyst. Click it for sync details.' },

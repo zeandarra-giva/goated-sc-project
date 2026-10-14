@@ -9,6 +9,7 @@ import Explorer from './pages/Explorer.jsx'
 import Reports from './pages/Reports.jsx'
 import Team from './pages/Team.jsx'
 import Settings from './pages/Settings.jsx'
+import SignIn from './pages/SignIn.jsx'
 
 // Account profile is reached from the profile menu at the bottom of the sidebar.
 const PAGES = [
@@ -22,8 +23,13 @@ const PAGES = [
 const NavCtx = createContext(null)
 export const useNav = () => useContext(NavCtx)
 
+// The signed-in role is remembered per browser so a reload doesn't sign you out.
+const SESSION_KEY = 'scope-session'
+const readSession = () => { try { return localStorage.getItem(SESSION_KEY) } catch { return null } }
+const writeSession = (role) => { try { role ? localStorage.setItem(SESSION_KEY, role) : localStorage.removeItem(SESSION_KEY) } catch { /* storage blocked */ } }
+
 export default function App() {
-  const { state } = useStore()
+  const { state, dispatch } = useStore()
   const [route, setRoute] = useState(() => {
     const h = location.hash.replace('#', '')
     return { page: PAGES.some((p) => p.id === h) ? h : 'home' }
@@ -33,9 +39,15 @@ export default function App() {
     try { history.replaceState(null, '', '#' + page) } catch { /* sandboxed frame */ }
     window.scrollTo(0, 0)
   }
+  const [session, setSession] = useState(readSession)
   const [signedOut, setSignedOut] = useState(false)
+  useEffect(() => { if (session && session !== state.role) dispatch({ type: 'role', role: session }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Keep the session in step when the Dev panel switches role.
+  useEffect(() => { if (session && session !== state.role) { setSession(state.role); writeSession(state.role) } }, [state.role]) // eslint-disable-line react-hooks/exhaustive-deps
+  const signIn = (role) => { dispatch({ type: 'role', role }); writeSession(role); setSession(role); setSignedOut(false); nav('home') }
+  const signOut = () => { writeSession(null); setSession(null); setSignedOut(true) }
   const page = PAGES.find((p) => p.id === route.page)
-  if (signedOut) return <SignedOut onSignIn={() => { setSignedOut(false); nav('home') }} />
+  if (!session) return <SignIn onSignIn={signIn} signedOut={signedOut} />
   const breached = state.tickets.filter((t) => slaInfo(t, state.now).status === 'Breached').length
 
   return (
@@ -43,10 +55,10 @@ export default function App() {
       <div className="app">
         <nav className="rail" aria-label="Main" data-tour="rail">
           <div className="brand">
-            <div className="brand-mark">SO</div>
+            <div className="brand-mark">SC</div>
             <div>
-              <div className="brand-name">serviceops</div>
-              <div className="brand-sub">Incident queue console</div>
+              <div className="brand-name">scope</div>
+              <div className="brand-sub">Solution Center Hub</div>
             </div>
           </div>
           {[['General', ['home', 'explorer', 'reports']], ['Tools', ['team']]].map(([group, ids]) => (
@@ -62,7 +74,7 @@ export default function App() {
             </div>
           ))}
           <div className="rail-foot" />
-          <ProfileMenu active={route.page === 'settings'} onSettings={() => nav('settings')} onLogout={() => setSignedOut(true)} />
+          <ProfileMenu active={route.page === 'settings'} onSettings={() => nav('settings')} onLogout={signOut} />
         </nav>
         <div className="main">
           <Header page={page} />
@@ -102,7 +114,7 @@ function Header({ page }) {
   const now = new Date(state.now)
   return (
     <header className="header">
-      <nav className="crumb" aria-label="Breadcrumb"><span className="crumb-back" aria-hidden="true"><Icon name={page.icon} size={16} /></span><span>ServiceOps</span><Icon name="arrowR" size={14} /><b>{page.label}</b></nav>
+      <nav className="crumb" aria-label="Breadcrumb"><span className="crumb-back" aria-hidden="true"><Icon name={page.icon} size={16} /></span><span>Scope</span><Icon name="arrowR" size={14} /><b>{page.label}</b></nav>
       <div className="header-center"><SnowStatus /></div>
       <div className="header-right">
       <div className="date-chip" title="Local time">
@@ -230,14 +242,14 @@ function Notifications() {
 }
 
 function readTheme() {
-  try { return localStorage.getItem('serviceops-theme') || 'light' } catch { return 'light' }
+  try { return (localStorage.getItem('scope-theme') || localStorage.getItem('serviceops-theme')) || 'light' } catch { return 'light' }
 }
 
 function ThemeToggle() {
   const [theme, setTheme] = useState(readTheme)
   useEffect(() => {
     document.documentElement.setAttribute('data-app-theme', theme)
-    try { localStorage.setItem('serviceops-theme', theme) } catch { /* storage blocked */ }
+    try { localStorage.setItem('scope-theme', theme) } catch { /* storage blocked */ }
   }, [theme])
   const dark = theme === 'dark'
   return (
@@ -286,18 +298,3 @@ function ProfileMenu({ active, onSettings, onLogout }) {
   )
 }
 
-function SignedOut({ onSignIn }) {
-  return (
-    <div className="signed-out">
-      <div className="card" style={{ padding: 28, maxWidth: 380, width: '100%', textAlign: 'center' }}>
-        <div className="stack lg" style={{ alignItems: 'center' }}>
-          <div className="brand-mark" style={{ width: 40, height: 40, fontSize: 15 }}>SO</div>
-          <h2 style={{ font: '700 22px/1.3 var(--f-ui)' }}>You're signed out</h2>
-          <p className="ink2" style={{ margin: 0 }}>Your session ended. Open tickets stay assigned and the fair-share rule skips you until you're back online.</p>
-          <button className="btn primary" onClick={onSignIn}>Sign in again</button>
-          <span className="small muted">Prototype: no credentials needed.</span>
-        </div>
-      </div>
-    </div>
-  )
-}

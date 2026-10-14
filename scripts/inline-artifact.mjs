@@ -5,7 +5,7 @@ const dir = 'dist/assets'
 const files = readdirSync(dir)
 const js = files.filter((f) => f.endsWith('.js')).map((f) => readFileSync(`${dir}/${f}`, 'utf8')).join('\n')
 const css = files.filter((f) => f.endsWith('.css')).map((f) => readFileSync(`${dir}/${f}`, 'utf8')).join('\n')
-const out = `<title>ServiceOps Console</title>
+const out = `<title>Scope · Solution Center Hub</title>
 <style>${css}</style>
 <div id="root"></div>
 <script type="module">${js.replace(/<\/script/g, '<\\/script')}</script>
