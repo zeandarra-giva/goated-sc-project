@@ -18,6 +18,8 @@ npm run check:design   # design-system lint (also runs before every build)
 
 The design system (tokens, type scale, colors, spacing, components) is documented in [DESIGN.md](DESIGN.md) and enforced by `scripts/check-design.mjs`.
 
+Product requirements (problem, users, page-by-page features, business rules, data model, MVP scope, open questions) are in [docs/PRD.md](docs/PRD.md).
+
 - **Moving to another machine:** copy the project without `node_modules` and `dist`, then run `npm install`.
 - **Fonts:** Geist and Geist Mono are bundled from `@fontsource` in `src/fonts.css`, so the app needs no internet access to show the right fonts.
 - **Single-file page:** `npm run artifact` builds a single page with the scripts, styles and fonts all inside it (`scripts/inline-artifact.mjs`). It's the version used for sharing.
@@ -67,6 +69,9 @@ src/
     Settings.jsx         Account profile
     SignIn.jsx           Sign in (SSO placeholder + Dev Login)
 scripts/inline-artifact.mjs   builds dist/artifact.html
+scripts/check-design.mjs      design-system lint
+docs/PRD.md                   product requirements (draft)
+DESIGN.md                     design system
 ```
 
 ## Current product design
