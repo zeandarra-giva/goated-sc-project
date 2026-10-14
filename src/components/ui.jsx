@@ -100,16 +100,51 @@ export function Modal({ title, sub, onClose, children, footer, wide }) {
   )
 }
 
+// Side panel. Its width can be dragged from the left edge (or changed with
+// the arrow keys on the handle); each kind of drawer remembers its width.
+const DRAWER_MIN = 360
+const clampDrawer = (w) => Math.max(DRAWER_MIN, Math.min(window.innerWidth - 24, w))
+
 export function Drawer({ title, sub, onClose, children, actions, className = '' }) {
+  const key = `scope-drawer-w:${className || 'default'}`
+  const [width, setWidth] = useState(() => { try { return +localStorage.getItem(key) || null } catch { return null } })
+  const latest = useRef(width)
+  latest.current = width
   useEffect(() => {
     const k = (e) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', k)
     return () => window.removeEventListener('keydown', k)
   }, [onClose])
+  const save = (w) => { try { w ? localStorage.setItem(key, String(Math.round(w))) : localStorage.removeItem(key) } catch { /* storage blocked */ } }
+  const startDrag = (e) => {
+    e.preventDefault()
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    document.body.classList.add('resizing')
+    const move = (ev) => { latest.current = clampDrawer(window.innerWidth - 12 - ev.clientX); setWidth(latest.current) }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      document.body.classList.remove('resizing')
+      save(latest.current)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+  const nudge = (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+    e.preventDefault()
+    const base = latest.current || e.currentTarget.parentElement.getBoundingClientRect().width || DRAWER_MIN
+    const w = clampDrawer(base + (e.key === 'ArrowLeft' ? 40 : -40))
+    latest.current = w
+    setWidth(w); save(w)
+  }
+  const reset = () => { setWidth(null); save(null) }
   return createPortal(
     <>
       <div className="drawer-scrim" onClick={onClose} />
-      <aside className={`drawer ${className}`} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : undefined}>
+      <aside className={`drawer ${className}`} style={width ? { width: clampDrawer(width) } : undefined} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : undefined}>
+        <div className="drawer-resize" role="separator" aria-orientation="vertical" aria-label="Resize panel" title="Drag to resize · double-click to reset" tabIndex={0}
+          onPointerDown={startDrag} onKeyDown={nudge} onDoubleClick={reset} />
         <div className="drawer-h">
           <div className="stack" style={{ gap: 4, flex: 1, minWidth: 0 }}>{title}{sub}</div>
           {actions}

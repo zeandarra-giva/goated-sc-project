@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { currentUser, useStore } from '../store.jsx'
 import { Icon, Kpi } from '../components/ui.jsx'
 import { ACCESS } from './Team.jsx'
@@ -46,6 +46,20 @@ export default function Settings() {
     const d = new Date(c.ts)
     if (d.getDate() === 1) months.push({ col: Math.floor(i / 7), label: d.toLocaleDateString([], { month: 'short' }) })
   })
+  // Heatmap squares scale with the card: fit all week columns into the width.
+  const heatRef = useRef(null)
+  const [heatW, setHeatW] = useState(0)
+  useEffect(() => {
+    const el = heatRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => setHeatW(e.contentRect.width))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const cols = Math.ceil(cells.length / 7)
+  const avail = heatW - 28 - 4
+  const gap = avail / cols >= 18 ? 4 : 3
+  const cell = heatW ? Math.max(8, Math.min(28, Math.floor((avail + gap) / cols) - gap)) : 12
   const weekIdx = Math.floor((state.now - weekStart(state.now)) / DAY)
   const myWeek = state.schedule.days.slice(0, 7).map((d, i) => [d, state.schedule.sched[me.id]?.[i]])
 
@@ -110,14 +124,14 @@ export default function Settings() {
           <div className="card">
             <div className="card-h"><h3>Your year at a glance</h3><span className="muted small">{activity.length} days · attendance, shifts and leave</span></div>
             <div className="card-b stack lg">
-              <div className="tbl-wrap" style={{ paddingBottom: 4 }}>
-                <div style={{ display: 'inline-grid', gridTemplateColumns: '28px auto', gap: 4 }}>
+              <div className="tbl-wrap" ref={heatRef} style={{ paddingBottom: 4 }}>
+                <div className="heat-wrap" style={{ '--cell': `${cell}px`, '--gap': `${gap}px` }}>
                   <span />
                   <div style={{ position: 'relative', height: 14 }}>
-                    {months.map((m) => <span key={m.col + m.label} className="small muted" style={{ position: 'absolute', left: m.col * 15, fontSize: 11 }}>{m.label}</span>)}
+                    {months.map((m) => <span key={m.col + m.label} className="small muted" style={{ position: 'absolute', left: m.col * (cell + gap), fontSize: 11 }}>{m.label}</span>)}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateRows: 'repeat(7, 12px)', gap: 3, fontSize: 10 }} className="muted">
-                    {['', 'Mon', '', 'Wed', '', 'Fri', ''].map((d, i) => <span key={i} style={{ lineHeight: '12px' }}>{d}</span>)}
+                  <div className="heat-days muted">
+                    {['', 'Mon', '', 'Wed', '', 'Fri', ''].map((d, i) => <span key={i}>{d}</span>)}
                   </div>
                   <div className="heat" onMouseLeave={() => setHover(null)}>
                     {cells.map((c, i) => c ? (

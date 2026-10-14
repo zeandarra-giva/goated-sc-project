@@ -170,7 +170,7 @@ The current user's own entries get a 2px inset `--accent` outline (`.mine`).
 - **Series tokens** `--s1…--s8`: ink, blue, green, gold, pink, deep green, light blue, red. Assign them in order and never cycle them.
 - **Magnitude** (one measure split into parts, meters): use the blue ramp `--kb-1…4`.
 - **One axis per chart**, a 2px line, a crosshair tooltip (`.chart-tip`), and a recessive grid in `--line`.
-- **Heatmap:** `--heat-0` is empty. Kinds map to `--s7` (onsite), `--s7` mixed 45% with the card color (WFH), `--pink` (late), `--s3` (weekend), `--s4` (leave), `--s8` (sick), `--s1` (holiday). The legend squares must match the cells.
+- **Heatmap:** square size is computed from the card width so 53 weeks always fill it (8–28px squares; gap 3px, or 4px when squares are 18px or larger). `--heat-0` is empty. Kinds map to `--s7` (onsite), `--s7` mixed 45% with the card color (WFH), `--pink` (late), `--s3` (weekend), `--s4` (leave), `--s8` (sick), `--s1` (holiday). The legend squares must match the cells.
 
 ### 3.7 KPI card tones
 
@@ -214,7 +214,7 @@ The current user's own entries get a 2px inset `--accent` outline (`.mine`).
 | Canvas | `--bg`, flat, no gradient |
 | **Card** | `--glass` + `backdrop-filter: var(--glass-blur)`, **no border, no shadow** |
 | Nested panel | `--glass-2`, no shadow |
-| KPI card | Tinted fill at 78%, no border, no shadow |
+| KPI card | Tinted fill at 78% + a faint 1px border in its own tone (`--k-ic` at 16%), no shadow |
 | **Floating layers** | `--surface` + `box-shadow: var(--shadow)`. Only: popover, modal, drawer, toast, chart tooltip, profile menu, tour card, dev panel, today dropdown |
 | Overlays | `--scrim*` backdrop; modal scrim adds `blur(3px)` |
 | Header | `--header-bg` (88% canvas) + `blur(10px)`, sticky |
@@ -292,7 +292,7 @@ Rules: no page may scroll sideways at 375px or wider. Wide tables scroll inside 
 | Calendar bar | `.ev` + code | 30px tall, 12px corners, 24px avatar on the left, truncated label |
 | Meter | `.meter` | 10px pill track in `--surface-3`; segments with a 3px gap |
 | Toast | `.toast` | Inverted pill, bottom center, 3.8s |
-| Modal / Drawer | `<Modal>` / `<Drawer>` | Portalled; Escape closes; scrim click closes |
+| Modal / Drawer | `<Modal>` / `<Drawer>` | Portalled; Escape closes; scrim click closes. Drawers are **resizable** from the left edge (drag, or ←/→ on the handle in 40px steps; double-click resets), 360px to viewport − 24px, and each drawer type remembers its width |
 | Notification badge | `.badge` | 19px, `--accent`, `--on-color` |
 
 ### Icons
@@ -338,7 +338,7 @@ Before you open a PR that touches the UI:
 - [ ] All colors come from tokens (`var(--…)`), in CSS and in inline styles.
 - [ ] New tokens have a **light and a dark** value.
 - [ ] Font sizes, radii and z-index are on the scales above.
-- [ ] No `box-shadow` on cards or in-page elements, and no borders on cards.
+- [ ] No `box-shadow` on cards or in-page elements, and no borders on cards (KPI cards are the one exception: a faint tone border).
 - [ ] Status colors only mean status, with a label or icon too.
 - [ ] Cards with a title use `.card-h`, which gives the divider.
 - [ ] Any new overlay is portalled to `document.body`.
