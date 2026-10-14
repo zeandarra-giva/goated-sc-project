@@ -199,6 +199,65 @@ export function seedQueue() {
 }
 
 // ---------- Resolved history (Ticket Explorer) ----------
+// ---------- Resolution details (Ticket Explorer) ----------
+// Why a ticket missed its SLA. Recorded when a breached ticket is resolved.
+export const BREACH_REASONS = {
+  'BR-01': 'Awaiting customer response',
+  'BR-02': 'Misrouted / transferred between groups',
+  'BR-03': 'Queue backlog / capacity',
+  'BR-04': 'Third-party or vendor dependency',
+  'BR-05': 'Complex diagnosis',
+  'BR-06': 'Change window or approval wait',
+}
+// Where a transferred ticket was escalated, by root-cause family.
+export const ESCALATION_TARGETS = {
+  NET: 'Network Engineering L3',
+  IAM: 'Identity & Access Management',
+  APP: 'Application Support L3',
+  EUC: 'Desktop Engineering',
+  INF: 'Infrastructure Operations',
+  USR: 'Service Desk L2',
+}
+export const problemCategory = (code) => {
+  const [cause, sub] = code.split('-')
+  const rc = ROOT_CAUSES[cause]
+  return rc ? `${rc.label} › ${rc.subs[sub] || sub}` : 'Other'
+}
+// Low-hanging fruit: low-priority tickets with a known, simple or self-service
+// fix that the Solution Center could have closed at first contact.
+const DEFLECT_BY_CODE = {
+  USR: 'How-to guidance: answer from a knowledge article',
+  'IAM-LOCK': 'Account unlock: self-service reset',
+  'IAM-MFA': 'MFA re-enrolment: guided self-service',
+  'NET-VPN': 'VPN profile reset: scripted fix',
+  'NET-DNS': 'DNS cache flush: scripted fix',
+  'EUC-PRF': 'Profile rebuild: runbook at first contact',
+}
+export function deflection(h) {
+  if (!['P3', 'P4'].includes(h.priority) || h.resH > 3) return null
+  const [cause, sub] = h.code.split('-')
+  return DEFLECT_BY_CODE[`${cause}-${sub}`] || DEFLECT_BY_CODE[cause] || null
+}
+// Fill in the resolution details for a resolved-ticket row (seeded or live).
+export function resolutionDetails(h, i = 0) {
+  const cause = h.code.split('-')[0]
+  const slaH = PRIORITIES[h.priority].slaH
+  const overH = Math.max(0, h.ezeH - slaH)
+  const diag = h.journey.find((j) => j.stage === 'Diagnosis')
+  const fix = h.journey.find((j) => j.stage === 'Fix applied')
+  const breachCode = h.slaMet ? null : h.breachCode || (h.transfers > 0 ? 'BR-02' : h.lostH > h.resH ? 'BR-03' : ['BR-01', 'BR-04', 'BR-05', 'BR-06'][i % 4])
+  return {
+    category: problemCategory(h.code),
+    diagNote: h.diagNote || diag?.note || '',
+    fixNote: h.fixNote || fix?.note || '',
+    breachCode,
+    overH: h.slaMet ? 0 : overH,
+    // An analyst can confirm or override the rule when resolving.
+    deflect: h.deflectFlag === false ? null : h.deflectFlag === true ? deflection(h) || 'Flagged by the resolving analyst' : deflection(h),
+    escalatedTo: h.transfers > 0 ? h.escalatedTo || ESCALATION_TARGETS[cause] || 'Service Desk L2' : null,
+  }
+}
+
 export function seedHistory(n = 220) {
   const rows = []
   for (let i = 0; i < n; i++) {
@@ -243,7 +302,16 @@ export function seedHistory(n = 220) {
       journey: buildJourney(openedAt, queueWait, resH, lost, code, transfers, analyst.name),
     })
   }
-  return rows.sort((a, b) => b.resolvedAt - a.resolvedAt)
+  return rows.map((h, i) => ({ ...h, ...resolutionDetails(h, i) })).sort((a, b) => b.resolvedAt - a.resolvedAt)
+}
+
+const DIAG_DETAIL = {
+  NET: 'Reproduced from the user session; client logs showed repeated tunnel or lookup failures.',
+  IAM: 'Directory audit log showed the account state; entitlements checked against the role catalogue.',
+  APP: 'Matched the error to application logs and the known-error database.',
+  EUC: 'Remote session on the device; event viewer and health check confirmed the fault.',
+  INF: 'Monitoring dashboards showed the affected service; checked recent changes and capacity.',
+  USR: 'Walked through the steps with the user; no system fault found.',
 }
 
 function buildJourney(openedAt, queueWait, resH, lost, code, transfers, who) {
@@ -259,7 +327,7 @@ function buildJourney(openedAt, queueWait, resH, lost, code, transfers, who) {
     steps.push({ stage: 'Transfer', at: t, note: `Transferred ${transfers}× before reaching the right resolver group.` })
   }
   t += resH * 0.4 * HOUR
-  steps.push({ stage: 'Diagnosis', at: t, note: `Root cause identified: ${ROOT_CAUSES[info.cause].subs[info.sub]}.` })
+  steps.push({ stage: 'Diagnosis', at: t, note: `Root cause identified: ${ROOT_CAUSES[info.cause].subs[info.sub]}. ${DIAG_DETAIL[info.cause] || ''}`.trim() })
   t += resH * 0.45 * HOUR
   steps.push({ stage: 'Fix applied', at: t, note: `${info.title} (${info.runbook}).` })
   t += resH * 0.15 * HOUR

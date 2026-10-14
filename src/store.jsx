@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer } from 'react'
 import {
   ANALYSTS, DAY, HOUR, NOW, PRIORITIES, RESOLUTION_CODES, byId, codeInfo, makeQueueTicket, pickAssignee,
-  dayIndex, dayKey, fmtDur, seedHandovers, seedHistory, seedQueue, seedSchedule, seedVault, slaInfo,
+  dayIndex, dayKey, fmtDur, resolutionDetails, seedHandovers, seedHistory, seedQueue, seedSchedule, seedVault, slaInfo,
 } from './data.js'
 
 const Ctx = createContext(null)
@@ -115,7 +115,9 @@ function reducer(state, a) {
         slaMet: slaInfo(t, now).status !== 'Breached', code: a.code.code,
         qa: { documentation: a.journey.every((j) => j.note.trim()), contactLogged: t.contacts.length > 0, correctCode: true, validated: a.validated },
         journey: a.journey, fresh: true,
+        diagNote: a.diagNote, fixNote: a.fixNote, breachCode: a.breachCode, escalatedTo: a.escalatedTo, deflectFlag: a.deflectFlag,
       }
+      Object.assign(row, resolutionDetails(row))
       return toast({
         ...state,
         codes,

@@ -120,7 +120,7 @@ How incidents were solved.
 
 | Tab | What it covers |
 |---|---|
-| Resolved tickets | KPIs (records, EZE MTTR, RES MTTR, lost time, Goal ≤4 hours), filters (search, date range, product group, channel, business app, FCR), and the results table. Each row opens the ticket's resolution journey with similar incidents |
+| Resolved tickets | KPIs (records, EZE MTTR, RES MTTR, lost time, Goal ≤4 hours), filters (search, date range, product group, channel, business app, FCR, and flags for **SLA breached**, **deflection candidates** and **escalated**), and the results table: who solved it, problem category, business app, diagnosis note, remedy/fix note, code, dates, MTTRs, FCR, **breach reason code** (BR-01–BR-06, with hours over SLA), **deflection candidate** (low-priority tickets with a simple or self-service fix the Solution Center could have closed at first contact) and **escalation target** for transferred tickets. Each row opens the journey drawer with the same details |
 | Resolution codes | The code library (for example `NET-VPN-01`): resolution, root cause, runbook, uses, average RES MTTR, and whether the fix can be automated |
 | Handover log | History of shift handovers and whether each was acknowledged |
 

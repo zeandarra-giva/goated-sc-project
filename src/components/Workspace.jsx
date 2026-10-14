@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { currentUser, useStore } from '../store.jsx'
 import { Icon, Modal, Prio, SlaPill } from './ui.jsx'
-import { HOUR, ROOT_CAUSES, byId, codeInfo, fmtDateTime, fmtDur, fmtH, fmtTime, similarity, slaInfo } from '../data.js'
+import { BREACH_REASONS, ESCALATION_TARGETS, HOUR, PRIORITIES, ROOT_CAUSES, deflection, initials, byId, codeInfo, fmtDateTime, fmtDur, fmtH, fmtTime, similarity, slaInfo } from '../data.js'
 
 // ---------- Resolution Assist ----------
 // Deterministic: keyword overlap against resolved history picks similar
@@ -204,6 +204,9 @@ export function ResolveModal({ ticket, onClose }) {
     validNote: `${ticket.caller} confirmed service restored.`,
     fcr: ticket.channel === 'Phone' || ticket.channel === 'Chat',
     transfers: 0,
+    escalatedTo: '',
+    breachCode: '',
+    deflectFlag: null,
     closeNote: '',
   })
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value })
@@ -219,7 +222,18 @@ export function ResolveModal({ ticket, onClose }) {
     return { code: prefix + seq, cause: f.cause, sub: f.sub, title: f.fix, runbook: f.runbook || 'Runbook pending', automatable: false, isNew: true }
   }, [f.cause, f.sub, f.newFix, f.fix, f.runbook, state.codes])
 
-  const valid = [f.symptom.trim(), f.cause && f.sub, f.fix.trim(), !f.validated ? f.validNote.trim() : true, true]
+  const breached = slaInfo(ticket, Date.now()).status === 'Breached'
+  const escalated = Number(f.transfers) > 0
+  const solver = byId[ticket.assignedTo]
+  const category = `${ROOT_CAUSES[f.cause].label} › ${ROOT_CAUSES[f.cause].subs[f.sub]}`
+  const ageH = (Date.now() - ticket.openedAt) / HOUR
+  const overH = Math.max(0, ageH - PRIORITIES[ticket.priority].slaH)
+  const resNowH = (Date.now() - (ticket.assignedAt || ticket.queuedAt)) / HOUR
+  // Deflection: the rule suggests, the analyst confirms (null = follow the rule).
+  const autoDeflect = deflection({ priority: ticket.priority, resH: resNowH, code: `${f.cause}-${f.sub}-01` })
+  const isDeflect = f.deflectFlag === null ? !!autoDeflect : f.deflectFlag
+  const deflectReason = isDeflect ? autoDeflect || 'Flagged by the resolving analyst' : null
+  const valid = [f.symptom.trim(), f.cause && f.sub, f.fix.trim(), !f.validated ? f.validNote.trim() : true, (!breached || f.breachCode) && (!escalated || f.escalatedTo)]
   const canFinish = valid.every(Boolean)
 
   const finish = () => {
@@ -234,7 +248,10 @@ export function ResolveModal({ ticket, onClose }) {
       { stage: 'Fix applied', at: start + span * 0.85, note: `${f.fix} (${f.runbook || 'no runbook'}).` },
       { stage: 'Validated', at: now, note: f.validated ? f.validNote : `Not confirmed by customer: ${f.validNote}` },
     ]
-    dispatch({ type: 'resolve', id: ticket.id, code: { code: code.code, cause: code.cause, sub: code.sub, title: code.title, runbook: code.runbook, automatable: code.automatable }, journey, fcr: f.fcr, transfers: Number(f.transfers), validated: f.validated })
+    dispatch({ type: 'resolve', id: ticket.id, code: { code: code.code, cause: code.cause, sub: code.sub, title: code.title, runbook: code.runbook, automatable: code.automatable }, journey, fcr: f.fcr, transfers: Number(f.transfers), validated: f.validated,
+      diagNote: `${category}. ${f.diagNote}`.trim(),
+      fixNote: `${f.fix} (${f.runbook || 'no runbook'}).`,
+      breachCode: breached ? f.breachCode : null, escalatedTo: escalated ? f.escalatedTo : null, deflectFlag: f.deflectFlag })
     onClose()
   }
 
@@ -256,6 +273,12 @@ export function ResolveModal({ ticket, onClose }) {
             <b>{i + 1}. {s.label}</b>{s.hint}
           </button>
         ))}
+      </div>
+      <div className="rj-context">
+        <span><span className="eyebrow">Solved by</span><span className="row tight"><span className="avatar sm">{initials(solver?.name || '?')}</span>{solver?.name || 'Unassigned'}</span></span>
+        <span><span className="eyebrow">Business application</span>{ticket.businessApp}</span>
+        <span><span className="eyebrow">Problem category</span>{category}</span>
+        <span><span className="eyebrow">SLA</span>{breached ? <span className="pill crit">Breached · +{fmtH(overH)}</span> : <span className="pill good">Within SLA</span>}</span>
       </div>
 
       {step === 0 && (
@@ -281,13 +304,13 @@ export function ResolveModal({ ticket, onClose }) {
               </select>
             </label>
           </div>
-          <label className="field"><span>Diagnosis notes <span className="hint">(optional)</span></span><textarea id="rj-diag" className="in" value={f.diagNote} onChange={set('diagNote')} placeholder="Logs checked, recent changes, what ruled other causes out" /></label>
+          <label className="field"><span>Diagnosis note <span className="hint">(optional)</span></span><textarea id="rj-diag" className="in" value={f.diagNote} onChange={set('diagNote')} placeholder="Logs checked, recent changes, what ruled other causes out" /></label>
           {assist.top && <div className="callout accent small"><Icon name="spark" size={16} />Resolution Assist suggests <b>{ROOT_CAUSES[assist.top.info.cause].label} · {ROOT_CAUSES[assist.top.info.cause].subs[assist.top.info.sub]}</b> based on {assist.sample} similar incidents.</div>}
         </div>
       )}
       {step === 2 && (
         <div className="stack lg">
-          <label className="field"><span>Action taken</span><textarea id="rj-fix" className="in" value={f.fix} onChange={set('fix')} /></label>
+          <label className="field"><span>Remedy / fix note <span className="hint">(action taken)</span></span><textarea id="rj-fix" className="in" value={f.fix} onChange={set('fix')} /></label>
           <label className="field" style={{ maxWidth: 360 }}><span>Runbook followed</span><input id="rj-runbook" className="in" value={f.runbook} onChange={set('runbook')} /></label>
           <label className="check small"><input id="rj-new" type="checkbox" checked={f.newFix} onChange={set('newFix')} />This is a new fix that no existing resolution code covers. Mint a new code.</label>
         </div>
@@ -305,8 +328,41 @@ export function ResolveModal({ ticket, onClose }) {
               <select id="rj-fcr" className="in" value={f.fcr ? 'yes' : 'no'} onChange={(e) => setF({ ...f, fcr: e.target.value === 'yes' })}><option value="yes">Yes, solved on first contact</option><option value="no">No</option></select>
             </label>
             <label className="field"><span>Transfers before reaching you</span><input id="rj-transfers" type="number" min="0" max="9" className="in" value={f.transfers} onChange={set('transfers')} /></label>
+            <label className="field"><span>Escalation target resolver <span className="hint">{escalated ? '(required: ticket was transferred)' : '(only when transferred)'}</span></span>
+              <select id="rj-esc" className="in" value={escalated ? f.escalatedTo : ''} onChange={set('escalatedTo')} disabled={!escalated}>
+                <option value="">{escalated ? 'Choose a resolver group…' : 'Not escalated'}</option>
+                {[...new Set(Object.values(ESCALATION_TARGETS))].map((g) => <option key={g}>{g}</option>)}
+              </select>
+            </label>
+            <label className="field"><span>Breach reason code <span className="hint">{breached ? `(required: ${fmtH(overH)} over the ${PRIORITIES[ticket.priority].slaH}h SLA)` : '(only when the SLA is breached)'}</span></span>
+              <select id="rj-breach" className="in" value={breached ? f.breachCode : ''} onChange={set('breachCode')} disabled={!breached}>
+                <option value="">{breached ? 'Why did it miss the SLA?' : 'SLA met: not needed'}</option>
+                {Object.entries(BREACH_REASONS).map(([k, v]) => <option key={k} value={k}>{k} · {v}</option>)}
+              </select>
+            </label>
+            <label className="field"><span>Deflection candidate <span className="hint">(could the Solution Center have resolved it at first contact?)</span></span>
+              <select id="rj-deflect" className="in" value={f.deflectFlag === null ? 'auto' : f.deflectFlag ? 'yes' : 'no'}
+                onChange={(e) => setF({ ...f, deflectFlag: e.target.value === 'auto' ? null : e.target.value === 'yes' })}>
+                <option value="auto">Suggested: {autoDeflect ? 'Yes' : 'No'}</option>
+                <option value="yes">Yes, flag as deflection candidate</option>
+                <option value="no">No</option>
+              </select>
+            </label>
           </div>
           <label className="field"><span>Close notes for the customer <span className="hint">(optional)</span></span><textarea id="rj-close" className="in" value={f.closeNote} onChange={set('closeNote')} /></label>
+          <div className="stack">
+            <div className="row"><span className="section-title">Resolution details</span><span className="muted small">saved to Ticket Explorer</span></div>
+            <dl className="details">
+              <dt>Solved by</dt><dd>{solver?.name || 'Unassigned'} · {solver?.group || 'Service Desk L2'}</dd>
+              <dt>Problem category</dt><dd>{category}</dd>
+              <dt>Business application</dt><dd>{ticket.businessApp}</dd>
+              <dt>Diagnosis note</dt><dd>{`${category}. ${f.diagNote}`.trim()}</dd>
+              <dt>Remedy / fix note</dt><dd>{f.fix} ({f.runbook || 'no runbook'})</dd>
+              <dt>Breach reason</dt><dd>{breached ? (f.breachCode ? <><span className="pill crit">{f.breachCode}</span> {BREACH_REASONS[f.breachCode]} · +{fmtH(overH)}</> : <span style={{ color: 'var(--crit)' }}>Required: choose a breach reason</span>) : <span className="muted">SLA met</span>}</dd>
+              <dt>Deflection candidate</dt><dd>{isDeflect ? <><span className="pill accent">Yes</span> {deflectReason}</> : <span className="muted">No</span>}</dd>
+              <dt>Escalation target</dt><dd>{escalated ? (f.escalatedTo ? `${f.escalatedTo} (${f.transfers} transfer${Number(f.transfers) > 1 ? 's' : ''})` : <span style={{ color: 'var(--crit)' }}>Required: choose a resolver group</span>) : <span className="muted">Not escalated</span>}</dd>
+            </dl>
+          </div>
           <div className="callout good" style={{ alignItems: 'center' }}>
             <Icon name="check" />
             <div className="stack" style={{ gap: 2, flex: 1 }}>

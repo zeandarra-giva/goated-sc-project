@@ -694,3 +694,14 @@ button.ev:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px;
 .drawer-resize:focus-visible { outline: none; }
 body.resizing { cursor: ew-resize; user-select: none; }
 @media (max-width: 560px) { .drawer-resize { display: none; } }
+
+/* Ticket Explorer: clipped notes in the table, details list in the drawer */
+.note-clip { min-width: 180px; max-width: 260px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.details { display: grid; grid-template-columns: minmax(120px, max-content) minmax(0, 1fr); gap: 10px 16px; margin: 0; font-size: 13.5px; }
+.details dt { color: var(--muted); }
+.details dd { margin: 0; color: var(--ink); }
+@media (max-width: 560px) { .details { grid-template-columns: minmax(0, 1fr); gap: 2px; } .details dd { margin-bottom: 8px; } }
+
+/* Resolve modal: ticket context strip */
+.rj-context { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px 16px; padding: 12px 14px; border-radius: 16px; background: var(--glass-2); font-size: 13.5px; }
+.rj-context > span { display: flex; flex-direction: column; gap: 4px; min-width: 0; }

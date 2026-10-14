@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useStore } from '../store.jsx'
 import { Drawer, Icon, InfoTip, Kpi, KpiShell, Prio, Tabs } from '../components/ui.jsx'
 import { useAssist } from '../components/Workspace.jsx'
-import { BUSINESS_APPS, CHANNELS, DAY, PRODUCT_GROUPS, RES_GOAL_H, ROOT_CAUSES, avg, byId, fmtDate, fmtDateTime, fmtH, fmtTime } from '../data.js'
+import { BREACH_REASONS, BUSINESS_APPS, CHANNELS, DAY, PRIORITIES, initials, PRODUCT_GROUPS, RES_GOAL_H, ROOT_CAUSES, avg, byId, fmtDate, fmtDateTime, fmtH, fmtTime } from '../data.js'
 
 export default function Explorer({ route }) {
   const { state } = useStore()
@@ -24,14 +24,16 @@ export default function Explorer({ route }) {
 
 function Tickets() {
   const { state } = useStore()
-  const [f, setF] = useState({ q: '', pg: 'All', ch: 'All', app: 'All', fcr: 'All', range: '30' })
+  const [f, setF] = useState({ q: '', pg: 'All', ch: 'All', app: 'All', fcr: 'All', flag: 'All', range: '30' })
   const [open, setOpen] = useState(null)
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
   const rows = useMemo(() => state.history.filter((h) =>
     (f.range === 'all' || h.resolvedAt >= state.now - Number(f.range) * DAY) &&
     (f.pg === 'All' || h.productGroup === f.pg) && (f.ch === 'All' || h.channel === f.ch) && (f.app === 'All' || h.businessApp === f.app) &&
     (f.fcr === 'All' || (f.fcr === 'Yes') === h.fcr) &&
-    (!f.q || `${h.id} ${h.desc} ${h.code}`.toLowerCase().includes(f.q.toLowerCase()))), [state.history, state.now, f])
+    (f.flag === 'All' || (f.flag === 'breached' && h.breachCode) || (f.flag === 'deflect' && h.deflect) || (f.flag === 'escalated' && h.escalatedTo)) &&
+    (!f.q || `${h.id} ${h.desc} ${h.code} ${h.category} ${byId[h.analyst]?.name || ''} ${h.diagNote} ${h.fixNote}`.toLowerCase().includes(f.q.toLowerCase()))), [state.history, state.now, f])
+  const count = (fn) => rows.filter(fn).length
   const k = {
     eze: avg(rows.map((r) => r.ezeH)), res: avg(rows.map((r) => r.resH)), lost: avg(rows.map((r) => r.lostH)),
     goal: rows.length ? rows.filter((r) => r.resH < RES_GOAL_H).length / rows.length : 0,
@@ -64,27 +66,42 @@ function Tickets() {
           <select id="ex-ch" className="in" value={f.ch} onChange={set('ch')} aria-label="Channel"><option>All</option>{CHANNELS.map((x) => <option key={x}>{x}</option>)}</select>
           <select id="ex-app" className="in" value={f.app} onChange={set('app')} aria-label="Business app"><option>All</option>{BUSINESS_APPS.map((x) => <option key={x}>{x}</option>)}</select>
           <select id="ex-fcr" className="in" value={f.fcr} onChange={set('fcr')} aria-label="First contact resolution"><option value="All">FCR: all</option><option>Yes</option><option>No</option></select>
+          <select id="ex-flag" className="in" value={f.flag} onChange={set('flag')} aria-label="Flags">
+            <option value="All">All tickets</option><option value="breached">SLA breached</option><option value="deflect">Deflection candidates</option><option value="escalated">Escalated</option>
+          </select>
+          <span className="spacer" />
+          <span className="row tight small ink2">
+            <span className="pill crit">{count((h) => h.breachCode)} breached</span>
+            <span className="pill accent">{count((h) => h.deflect)} deflectable</span>
+            <span className="pill warn">{count((h) => h.escalatedTo)} escalated</span>
+          </span>
         </div>
         <div className="tbl-wrap tbl-scroll">
           <table className="tbl">
             <thead><tr>
-              <th>Ticket</th><th>Product group</th><th>Channel</th><th>Business app</th><th>Date opened</th><th>Date resolved</th>
-              <th className="r">EZE MTTR</th><th className="r">RES MTTR</th><th className="r">Lost time</th><th>FCR</th><th>Code</th>
+              <th>Ticket</th><th>Solved by</th><th>Problem category</th><th>Business app</th><th>Diagnosis note</th><th>Remedy / fix note</th><th>Code</th>
+              <th>Date opened</th><th>Date resolved</th><th className="r">EZE MTTR</th><th className="r">RES MTTR</th><th className="r">Lost time</th><th>FCR</th>
+              <th>Breach reason</th><th>Deflection</th><th>Escalated to</th>
             </tr></thead>
             <tbody>
               {rows.slice(0, 200).map((h) => (
                 <tr key={h.id} className="click" onClick={() => setOpen(h.id)}>
                   <td className="nowrap"><span className="mono">{h.id}</span>{h.fresh && <span className="pill accent plain" style={{ marginLeft: 6 }}>New</span>}<div className="small muted" style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.desc}</div></td>
-                  <td className="nowrap">{h.productGroup}</td>
-                  <td className="nowrap">{h.channel}</td>
+                  <td className="nowrap"><span className="row tight"><span className="avatar sm">{initials(byId[h.analyst]?.name || '?')}</span>{byId[h.analyst]?.name || '—'}</span></td>
+                  <td className="nowrap small">{h.category}</td>
                   <td className="nowrap">{h.businessApp}</td>
+                  <td><div className="note-clip small ink2" title={h.diagNote}>{h.diagNote || '—'}</div></td>
+                  <td><div className="note-clip small ink2" title={h.fixNote}>{h.fixNote || '—'}</div></td>
+                  <td><span className="code-chip">{h.code}</span></td>
                   <td className="nowrap small">{fmtDateTime(h.openedAt)}</td>
                   <td className="nowrap small">{fmtDateTime(h.resolvedAt)}</td>
                   <td className="r">{fmtH(h.ezeH)}</td>
                   <td className="r" style={{ color: h.resH >= RES_GOAL_H ? 'var(--crit)' : undefined }}>{fmtH(h.resH)}</td>
                   <td className="r">{fmtH(h.lostH)}</td>
                   <td><span className={`pill ${h.fcr ? 'good' : 'plain'}`}>{h.fcr ? 'Yes' : 'No'}</span></td>
-                  <td><span className="code-chip">{h.code}</span></td>
+                  <td className="nowrap">{h.breachCode ? <span className="pill crit" title={`${BREACH_REASONS[h.breachCode]} · ${fmtH(h.overH)} over the ${PRIORITIES[h.priority].slaH}h SLA`}>{h.breachCode} · +{fmtH(h.overH)}</span> : <span className="muted">—</span>}</td>
+                  <td className="nowrap">{h.deflect ? <span className="pill accent" title={h.deflect}><Icon name="spark" size={11} />Candidate</span> : <span className="muted">—</span>}</td>
+                  <td className="nowrap small">{h.escalatedTo ? <span className="row tight"><Icon name="arrowR" size={12} />{h.escalatedTo}</span> : <span className="muted">—</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -117,6 +134,19 @@ function TicketJourney({ h, onClose, onOpen }) {
         <div className="row"><span className="eyebrow">Resolution code</span><span className="code-chip" style={{ fontSize: 14 }}>{h.code}</span>{info?.automatable && <span className="pill plain"><Icon name="bolt" size={11} />Automatable</span>}</div>
         <b>{info?.title}</b>
         {info && <span className="small ink2">{ROOT_CAUSES[info.cause].label} · {ROOT_CAUSES[info.cause].subs[info.sub]} · {info.runbook}</span>}
+      </div>
+      <div className="stack">
+        <div className="section-title">Resolution details</div>
+        <dl className="details">
+          <dt>Solved by</dt><dd><span className="row tight"><span className="avatar sm">{initials(byId[h.analyst]?.name || '?')}</span>{byId[h.analyst]?.name} · {h.assignmentGroup}</span></dd>
+          <dt>Problem category</dt><dd>{h.category}</dd>
+          <dt>Business application</dt><dd>{h.businessApp}</dd>
+          <dt>Diagnosis note</dt><dd>{h.diagNote || '—'}</dd>
+          <dt>Remedy / fix note</dt><dd>{h.fixNote || '—'}</dd>
+          <dt>Breach reason</dt><dd>{h.breachCode ? <><span className="pill crit">{h.breachCode}</span> {BREACH_REASONS[h.breachCode]} · {fmtH(h.overH)} over the {PRIORITIES[h.priority].slaH}h SLA</> : <span className="muted">SLA met</span>}</dd>
+          <dt>Deflection candidate</dt><dd>{h.deflect ? <><span className="pill accent">Yes</span> {h.deflect}</> : <span className="muted">No</span>}</dd>
+          <dt>Escalation target</dt><dd>{h.escalatedTo ? `${h.escalatedTo} (${h.transfers} transfer${h.transfers > 1 ? 's' : ''})` : <span className="muted">Not escalated</span>}</dd>
+        </dl>
       </div>
       <div className="stack">
         <div className="section-title">Resolution journey</div>
