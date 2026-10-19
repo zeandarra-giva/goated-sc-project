@@ -3,6 +3,8 @@ import {
   ANALYSTS, DAY, HOUR, NOW, PRIORITIES, RESOLUTION_CODES, byId, codeInfo, makeQueueTicket, pickAssignee,
   dayIndex, dayKey, fmtDur, resolutionDetails, seedHandovers, seedHistory, seedQueue, seedSchedule, seedVault, slaInfo,
 } from './data.js'
+import { indexProblem, seedKb } from './kb.js'
+import { defaultCopilot } from './copilot.js'
 
 const Ctx = createContext(null)
 
@@ -32,8 +34,15 @@ function init() {
     tour: false,
     snow: { lastSync: NOW, status: 'Live', latencyMs: 182, intakeLastHour: 7 },
     now: NOW,
+    kb: seedKb(),
+    copilot: { config: defaultCopilot(), threads: [], misses: [] },
+    devFailIndex: false,
+    explorerTabs: [],
   }
 }
+
+const mapPage = (state, id, fn) => ({ ...state, kb: { ...state.kb, pages: state.kb.pages.map((p) => (p.id === id ? fn(p) : p)) } })
+const mapThread = (state, id, fn) => ({ ...state, copilot: { ...state.copilot, threads: state.copilot.threads.map((t) => (t.id === id ? fn(t) : t)) } })
 
 function assign(state, ticket) {
   const p = pickAssignee(state.tickets, state.analysts, state.stats)
@@ -176,6 +185,69 @@ function reducer(state, a) {
       const sched = { ...state.schedule.sched, [m.id]: state.schedule.days.map((_, i) => (i % 7 >= 5 ? 'OFF' : m.shift === 'Late' ? 'L' : m.shift === 'Mid' ? 'M' : 'E')) }
       return toast({ ...state, analysts: [...state.analysts, m], schedule: { ...state.schedule, sched } }, `${m.name} added to the team`)
     }
+    // ---------- Knowledge base ----------
+    case 'kbAdd':
+      return toast({ ...state, kb: { ...state.kb, kbs: [...state.kb.kbs, a.kb] } }, `${a.kb.name} created`)
+    case 'kbFolderAdd':
+      return { ...state, kb: { ...state.kb, folders: [...state.kb.folders, a.folder] } }
+    case 'kbPageAdd':
+      return { ...state, kb: { ...state.kb, pages: [a.page, ...state.kb.pages] } }
+    case 'kbDraft':
+      return mapPage(state, a.id, (p) => ({ ...p, draft: { ...p.draft, ...a.patch }, updatedAt: Date.now(), updatedBy: a.by }))
+    case 'kbMeta':
+      return mapPage(state, a.id, (p) => ({ ...p, ...a.patch }))
+    case 'kbDiscard':
+      return toast(mapPage(state, a.id, (p) => ({ ...p, draft: { title: p.live.title, body: p.live.body, attachments: p.live.attachments } })), 'Draft discarded. Back to the published version')
+    case 'kbReview':
+      return toast(mapPage(state, a.id, (p) => ({ ...p, review: { by: a.by, at: Date.now() } })), 'Review requested from the team lead')
+    case 'kbPublish':
+      return mapPage(state, a.id, (p) => ({ ...p, index: 'indexing', indexError: null, publishing: a.by }))
+    case 'kbIndexed': {
+      // Indexing either succeeds and the draft becomes the live version, or fails
+      // and the last good version stays live for Copilot.
+      const p = state.kb.pages.find((x) => x.id === a.id)
+      if (!p || p.index !== 'indexing') return state
+      const error = indexProblem(p) || (state.devFailIndex ? 'The indexing service timed out. Publish again to retry.' : null)
+      const next = mapPage({ ...state, devFailIndex: error ? false : state.devFailIndex }, a.id, (x) => (error
+        ? { ...x, index: 'failed', indexError: error, publishing: null }
+        : { ...x, index: 'indexed', indexError: null, review: null, publishing: null, live: { ...x.draft, version: (x.live?.version || 0) + 1, at: Date.now(), by: x.publishing } }))
+      return toast(next, error ? `${p.draft.title} failed to index${p.live ? `. Copilot keeps using v${p.live.version}` : ''}` : `${p.draft.title} published and indexed`)
+    }
+    case 'kbNote':
+      return mapPage(state, a.id, (p) => ({ ...p, note: a.note }))
+    case 'kbData':
+      return mapPage(state, a.id, (p) => ({ ...p, data: a.data, updatedAt: Date.now(), updatedBy: a.by }))
+    case 'kbDataSync':
+      return toast(mapPage(state, a.id, (p) => ({ ...p, data: { ...p.data, syncedAt: Date.now() } })), `Synced from ${a.source} (simulated)`)
+    case 'kbDelete':
+      return toast({ ...state, kb: { ...state.kb, pages: state.kb.pages.filter((p) => p.id !== a.id) } }, 'Page deleted')
+    case 'explorerTabOpen':
+      return state.explorerTabs.includes(a.id) ? state : { ...state, explorerTabs: [...state.explorerTabs, a.id] }
+    case 'explorerTabClose':
+      return { ...state, explorerTabs: state.explorerTabs.filter((x) => x !== a.id) }
+    case 'devFailIndex':
+      return { ...state, devFailIndex: a.on }
+    // ---------- Copilot ----------
+    case 'copilotConfig':
+      return { ...state, copilot: { ...state.copilot, config: { ...state.copilot.config, ...a.patch } } }
+    case 'copilotThread':
+      if (state.copilot.threads.some((t) => t.id === a.thread.id)) return state
+      return { ...state, copilot: { ...state.copilot, threads: [{ messages: [], ...a.thread }, ...state.copilot.threads] } }
+    case 'copilotCtx':
+      return mapThread(state, a.id, (t) => ({ ...t, ctx: a.ctx }))
+    case 'copilotAsk':
+      return mapThread(state, a.id, (t) => ({
+        ...t,
+        title: t.messages.length ? t.title : a.title || a.text,
+        messages: [...t.messages, { id: a.mid + 'q', role: 'user', text: a.text, at: Date.now() }, { id: a.mid, role: 'assistant', pending: true, answer: a.answer, at: Date.now() }],
+      }))
+    case 'copilotDone': {
+      const next = mapThread(state, a.id, (t) => ({ ...t, messages: t.messages.map((m) => (m.id === a.mid ? { ...m, pending: false } : m)) }))
+      const m = state.copilot.threads.find((t) => t.id === a.id)?.messages.find((x) => x.id === a.mid)
+      return m?.answer.miss ? { ...next, copilot: { ...next.copilot, misses: [{ q: a.q, at: Date.now() }, ...next.copilot.misses.filter((x) => x.q !== a.q)] } } : next
+    }
+    case 'copilotMissClear':
+      return { ...state, copilot: { ...state.copilot, misses: state.copilot.misses.filter((x) => x.q !== a.q) } }
     default:
       return state
   }

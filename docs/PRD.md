@@ -87,7 +87,9 @@ Sidebar
 │   ├── Ticket Explorer
 │   └── Reports
 ├── Tools
-│   └── Team Management
+│   ├── Team Management
+│   ├── Knowledge Base
+│   └── Copilot
 └── Profile menu (bottom)
     ├── Account profile
     └── Log out
@@ -427,7 +429,7 @@ Revealing or copying a password needs a fresh identity check. Team leads see com
 The full spec (tokens, type scale, color, radius, elevation, spacing, components) is in [`DESIGN.md`](../DESIGN.md). `npm run check:design` enforces it, and it runs before every build. A summary:
 
 
-- **Canvas and cards:** warm cream canvas with glass cards (translucent fill, background blur, 22px corners, no border or shadow), and a thin divider under card titles.
+- **Canvas and cards:** soft neutral canvas with glass cards (translucent fill, background blur, 22px corners, no border or shadow), and a thin divider under card titles.
 - **Shape and type:** pill controls and round icon buttons. Geist for text, Geist Mono for codes, SOEIDs and coverage labels.
 - **Color:**
   - Citi blue `#056DAE` for accents (links, focus, badges), with a derived soft blue as the main pastel.

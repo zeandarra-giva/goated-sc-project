@@ -9,6 +9,8 @@ import Explorer from './pages/Explorer.jsx'
 import Reports from './pages/Reports.jsx'
 import Team from './pages/Team.jsx'
 import Settings from './pages/Settings.jsx'
+import KnowledgeBase from './pages/KnowledgeBase.jsx'
+import Copilot from './pages/Copilot.jsx'
 import SignIn from './pages/SignIn.jsx'
 
 // Account profile is reached from the profile menu at the bottom of the sidebar.
@@ -17,6 +19,8 @@ const PAGES = [
   { id: 'explorer', label: 'Ticket Explorer', icon: 'search', title: 'Ticket Explorer', desc: 'How every incident was solved: resolution journeys, codes and handover history.' },
   { id: 'reports', label: 'Reports', icon: 'chart', title: 'Reports', desc: 'Performance, quality and coaching, plus self-serve questions answered in your browser.' },
   { id: 'team', label: 'Team Management', icon: 'team', title: 'Team Management', desc: 'Roster, access, shift coverage, attendance and your password vault.' },
+  { id: 'kb', label: 'Knowledge Base', icon: 'book', title: 'Knowledge Base', desc: 'Runbooks, policies and live reference data. Publish a page and Copilot can use it.' },
+  { id: 'copilot', label: 'Copilot', icon: 'spark', title: 'Copilot', desc: 'Help resolving tickets and reading the operation, grounded in your knowledge base and live data.' },
   { id: 'settings', label: 'Account profile', icon: 'user', title: 'Account profile', desc: 'Your profile, access, attendance history, shifts and leave.' },
 ]
 
@@ -68,7 +72,7 @@ export default function App() {
             </div>
           </div>
           <div className="rail-nav">
-          {[['General', ['home', 'explorer', 'reports']], ['Tools', ['team']]].map(([group, ids]) => (
+          {[['General', ['home', 'explorer', 'reports']], ['Tools', ['team', 'kb', 'copilot']]].map(([group, ids]) => (
             <div key={group} style={{ display: 'contents' }}>
               <div className="rail-group">{group}</div>
               {PAGES.filter((p) => ids.includes(p.id)).map((p) => (
@@ -95,6 +99,8 @@ export default function App() {
             {route.page === 'explorer' && <Explorer route={route} />}
             {route.page === 'reports' && <Reports route={route} />}
             {route.page === 'team' && <Team route={route} />}
+            {route.page === 'kb' && <KnowledgeBase route={route} />}
+            {route.page === 'copilot' && <Copilot route={route} />}
             {route.page === 'settings' && <Settings />}
           </main>
         </div>

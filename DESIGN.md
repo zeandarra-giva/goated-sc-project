@@ -13,7 +13,7 @@ This is the source of truth for how Scope looks. Every visual value lives in a t
 
 ## 1. Principles
 
-1. **Calm canvas, glass surfaces.** A warm cream page holds translucent "glass" cards. Depth comes from translucency and blur, not shadows.
+1. **Calm canvas, glass surfaces.** A soft off-white page holds translucent "glass" cards. Depth comes from translucency and blur, not shadows.
 2. **One accent: Citi blue.** Blue is the only brand color. Everything else is neutral ink or a **semantic** status color.
 3. **Color means something.** Green, amber and red only ever mean good, warning and critical. They never decorate.
 4. **Every number explains itself.** KPIs carry an "i" button that opens the calculation.
@@ -76,31 +76,31 @@ Rules:
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--bg` | `#f6f0e4` | `#12110f` | Page canvas |
-| `--surface` | `#fbf7ef` | `#1c1b18` | Floating layers: modal, drawer, popover, menus |
-| `--surface-2` | `#eee6d6` | `#24221e` | Subtle fills, nav buttons |
-| `--surface-3` | `#e3d9c6` | `#302d27` | Tracks (meters, rings), rest-day fills |
-| `--card` | `#efe8da` | `#1f1d1a` | Solid card color (glass is derived from it) |
+| `--bg` | `#f4f3f0` | `#121212` | Page canvas |
+| `--surface` | `#fafaf8` | `#1b1b1a` | Floating layers: modal, drawer, popover, menus |
+| `--surface-2` | `#ebeae6` | `#232322` | Subtle fills, nav buttons |
+| `--surface-3` | `#dedcd7` | `#2d2c2a` | Tracks (meters, rings), rest-day fills |
+| `--card` | `#ecebe7` | `#1e1e1c` | Solid card color (glass is derived from it) |
 | `--glass` | `rgba(239,232,218,.58)` | `rgba(31,29,26,.55)` | **Card fill** |
 | `--glass-2` | `rgba(251,247,239,.62)` | `rgba(40,38,34,.55)` | Nested card or panel inside a card |
 | `--glass-blur` | `blur(22px) saturate(160%)` | `blur(22px) saturate(140%)` | Card `backdrop-filter` |
-| `--line` | ink 10% | cream 9% | Dividers, table rules, the line under card titles |
-| `--line-strong` | ink 22% | cream 20% | Control borders, dashed chips |
-| `--hover` | ink 5% | cream 6% | Hover fill |
+| `--line` | ink 10% | off-white 9% | Dividers, table rules, the line under card titles |
+| `--line-strong` | ink 22% | off-white 20% | Control borders, dashed chips |
+| `--hover` | ink 5% | off-white 6% | Hover fill |
 | `--row-hover` / `--row-sel` | ink 3.5% / blue 10% | — | Table rows |
-| `--ink` | `#1b1a17` | `#f3ecdf` | Primary text |
-| `--ink-2` | `#4d4a42` | `#c9c1b1` | Secondary text |
-| `--muted` | `#8a857a` | `#8f887a` | Tertiary text, units, hints |
-| `--btn` / `--btn-ink` | `#1b1a17` / `#f6f0e4` | `#f3ecdf` / `#12110f` | Primary button, selected segment, icon buttons |
+| `--ink` | `#1b1b19` | `#f0efec` | Primary text |
+| `--ink-2` | `#4a4945` | `#c5c2bc` | Secondary text |
+| `--muted` | `#85837e` | `#8b8882` | Tertiary text, units, hints |
+| `--btn` / `--btn-ink` | `#1b1b19` / `#f4f3f0` | `#f0efec` / `#121212` | Primary button, selected segment, icon buttons |
 
 **Fixed-dark surfaces** (the same in both themes):
 
 | Token | Value | Use |
 |---|---|---|
-| `--rail` | `#121110` (`#050505` dark) | Sidebar |
-| `--rail-ink` | `#b9b3a6` | Sidebar group labels |
-| `--rail-text` | `#ece5d8` | Sidebar items |
-| `--rail-title` | `#fbf7ef` | Wordmark, profile name |
+| `--rail` | `#121212` (`#050505` dark) | Sidebar |
+| `--rail-ink` | `#b4b2ad` | Sidebar group labels |
+| `--rail-text` | `#e9e8e5` | Sidebar items |
+| `--rail-title` | `#fafaf8` | Wordmark, profile name |
 | `--rail-hi` / `--rail-hi-ink` | `#7cc0f2` / `#0b1f33` | Active nav item, nav counts, sidebar avatar |
 | `--rail-active` / `--rail-hover` | white 6% / 12% | Sidebar hover and active fills |
 | `--scrim` / `--scrim-soft` / `--scrim-strong` | ink 45% / 30% / 55% | Modal, drawer and tour backdrops |

@@ -18,7 +18,7 @@ function steps(lead, first) {
     ...(lead ? [{ target: 'tab-approvals', title: 'Review fix approvals', body: 'Analysts can propose automated fixes from a resolution code. Nothing runs until you approve it here.', action: 'Open approvals' }] : []),
     { target: 'tab-handover', title: 'Start a shift handover', body: 'Summarises what was resolved, which critical incidents are still open and next week\'s coverage, ready for the next shift to acknowledge.', action: 'Open handover' },
     { target: 'notif', title: 'Notifications', body: 'Split into Needs action and Updates: SLA risk, new P1s, approvals, handovers, leave and password expiry reminders.' },
-    { target: 'rail', title: 'Everything else', body: 'Ticket Explorer for how incidents were solved, Reports for performance and coaching, and Team Management for schedules and your password vault.' },
+    { target: 'rail', title: 'Everything else', body: 'Ticket Explorer for how incidents were solved, Reports for performance and coaching, Team Management for schedules and your password vault, the Knowledge Base for runbooks and policies, and Copilot for help resolving tickets.' },
     { target: 'profile', title: 'Your account', body: 'Open your account profile or log out from here. That\'s the tour.' },
   ]
 }

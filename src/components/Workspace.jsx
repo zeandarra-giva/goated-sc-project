@@ -1,35 +1,16 @@
 import { useMemo, useState } from 'react'
 import { currentUser, useStore } from '../store.jsx'
+import { useNav } from '../App.jsx'
+import { canUseCopilot } from '../pages/Copilot.jsx'
 import { Icon, Modal, Prio, SlaPill } from './ui.jsx'
-import { BREACH_REASONS, ESCALATION_TARGETS, HOUR, PRIORITIES, ROOT_CAUSES, deflection, initials, byId, codeInfo, fmtDateTime, fmtDur, fmtH, fmtTime, similarity, slaInfo } from '../data.js'
+import { BREACH_REASONS, ESCALATION_TARGETS, HOUR, PRIORITIES, ROOT_CAUSES, computeAssist, deflection, initials, byId, codeInfo, fmtDateTime, fmtDur, fmtH, fmtTime, slaInfo } from '../data.js'
 
 // ---------- Resolution Assist ----------
 // Deterministic: keyword overlap against resolved history picks similar
 // incidents; the resolution codes they used vote for the likely fix.
 export function useAssist(desc, hintCode, excludeId) {
   const { state } = useStore()
-  return useMemo(() => {
-    const sims = state.history
-      .filter((h) => h.id !== excludeId)
-      .map((h) => ({ h, s: similarity(desc, h.desc) }))
-      .filter((x) => x.s > 0.25)
-      .sort((a, b) => b.s - a.s || b.h.resolvedAt - a.h.resolvedAt)
-    const votes = {}
-    sims.slice(0, 25).forEach(({ h, s }) => (votes[h.code] = (votes[h.code] || 0) + s))
-    if (hintCode && !Object.keys(votes).length) votes[hintCode] = 1
-    const total = Object.values(votes).reduce((a, b) => a + b, 0) || 1
-    const ranked = Object.entries(votes).sort((a, b) => b[1] - a[1]).map(([code, v]) => ({ code, conf: v / total, info: state.codes.find((c) => c.code === code) })).filter((r) => r.info)
-    const top = ranked[0]
-    const sameCode = top ? sims.filter((x) => x.h.code === top.code).map((x) => x.h) : []
-    return {
-      similar: sims.slice(0, 5).map((x) => ({ ...x.h, score: x.s })),
-      ranked: ranked.slice(0, 3),
-      top,
-      typicalRes: sameCode.length ? sameCode.reduce((s, h) => s + h.resH, 0) / sameCode.length : null,
-      fcrRate: sameCode.length ? sameCode.filter((h) => h.fcr).length / sameCode.length : null,
-      sample: sims.length,
-    }
-  }, [state.history, state.codes, desc, hintCode, excludeId])
+  return useMemo(() => computeAssist(state.history, state.codes, desc, hintCode, excludeId), [state.history, state.codes, desc, hintCode, excludeId])
 }
 
 export function ResolutionAssist({ ticket, compact }) {
@@ -110,6 +91,7 @@ export function ResolutionAssist({ ticket, compact }) {
 // ---------- Ticket workspace (resolution steps, contact log, assist) ----------
 export function TicketWorkspace({ ticket, onResolve }) {
   const { state, dispatch } = useStore()
+  const { nav } = useNav()
   const [entry, setEntry] = useState({ channel: 'Phone', note: '' })
   const sla = slaInfo(ticket, state.now)
   const me = currentUser(state)
@@ -163,6 +145,16 @@ export function TicketWorkspace({ ticket, onResolve }) {
         </form>
       </div>
 
+      {canUseCopilot(state) && (
+        <div className="callout accent" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <Icon name="spark" />
+          <div className="stack" style={{ gap: 2, flex: 1, minWidth: 180 }}>
+            <b>Work this ticket with Copilot</b>
+            <span className="small ink2">Steps from the published runbook, escalation contacts, similar incidents and a customer update draft.</span>
+          </div>
+          <button className="btn primary sm" onClick={() => nav('copilot', { ticket: ticket.id })}>Ask Copilot</button>
+        </div>
+      )}
       <hr className="sep" />
       <ResolutionAssist ticket={ticket} compact />
       <hr className="sep" />

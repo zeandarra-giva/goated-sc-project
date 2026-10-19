@@ -1,28 +1,88 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../store.jsx'
 import { Drawer, Icon, InfoTip, Kpi, KpiShell, Prio, Tabs } from '../components/ui.jsx'
+import { DocText } from '../components/Doc.jsx'
+import { useNav } from '../App.jsx'
+import { chunksOf, pageForCode } from '../kb.js'
 import { useAssist } from '../components/Workspace.jsx'
 import { BREACH_REASONS, BUSINESS_APPS, CHANNELS, DAY, PRIORITIES, initials, PRODUCT_GROUPS, RES_GOAL_H, ROOT_CAUSES, avg, byId, fmtDate, fmtDateTime, fmtH, fmtTime } from '../data.js'
 
+// Ticket Explorer works like a browser: the first tab is the explorer itself
+// (resolved tickets, codes, handovers) and is always there. Tickets and
+// resolution codes open in their own closable tabs beside it, and stay open
+// while you move around Scope.
+const tabKey = { ticket: (id) => 'tk:' + id, code: (c) => 'cd:' + c }
+
 export default function Explorer({ route }) {
-  const { state } = useStore()
-  const [tab, setTab] = useState(route.tab || 'tickets')
+  const { state, dispatch } = useStore()
+  const [section, setSection] = useState(route.tab || 'tickets')
+  const [active, setActive] = useState('home')
   const unacked = state.handovers.filter((h) => !h.acknowledged).length
+  const tabs = state.explorerTabs.map((k) => {
+    if (k.startsWith('tk:')) { const h = state.history.find((x) => x.id === k.slice(3)); return h && { key: k, kind: 'ticket', h, label: h.desc, id: h.id } }
+    const c = state.codes.find((x) => x.code === k.slice(3)); return c && { key: k, kind: 'code', c, label: c.title, id: c.code }
+  }).filter(Boolean)
+  const open = (key) => { dispatch({ type: 'explorerTabOpen', id: key }); setActive(key) }
+  const openTicket = (id) => open(tabKey.ticket(id))
+  const openCode = (code) => open(tabKey.code(code))
+  const close = (key) => {
+    const i = tabs.findIndex((t) => t.key === key)
+    dispatch({ type: 'explorerTabClose', id: key })
+    if (active === key) { const rest = tabs.filter((t) => t.key !== key); setActive(rest.length ? rest[Math.min(i, rest.length - 1)].key : 'home') }
+  }
+  const cur = tabs.find((t) => t.key === active)
   return (
     <>
-      <Tabs value={tab} onChange={setTab} tabs={[
-        { id: 'tickets', label: 'Resolved tickets', count: state.history.length, icon: 'doc' },
-        { id: 'codes', label: 'Resolution codes', count: state.codes.length, icon: 'book' },
-        { id: 'handover', label: 'Handover log', count: unacked || undefined, icon: 'clip' },
-      ]} />
-      {tab === 'tickets' && <Tickets />}
-      {tab === 'codes' && <Codes />}
-      {tab === 'handover' && <HandoverLog />}
+      <div className="tabstrip" role="tablist" aria-label="Open tabs">
+        <div className={`btab pinned ${!cur ? 'on' : ''}`} role="tab" aria-selected={!cur}>
+          <button className="btab-open" onClick={() => setActive('home')}><Icon name="search" size={15} /><span className="btab-t">Ticket Explorer</span></button>
+        </div>
+        {tabs.map((t) => (
+          <div key={t.key} className={`btab ${active === t.key ? 'on' : ''}`} role="tab" aria-selected={active === t.key} title={`${t.id} · ${t.label}`}>
+            <button className="btab-open" onClick={() => setActive(t.key)}>
+              <Icon name={t.kind === 'code' ? 'book' : 'doc'} size={15} /><span className="btab-t"><span className="mono">{t.id}</span> {t.label}</span>
+            </button>
+            <button className="btab-x" aria-label={`Close ${t.id}`} onClick={() => close(t.key)}><Icon name="x" size={13} /></button>
+          </div>
+        ))}
+      </div>
+      {!cur && (
+        <>
+          <Tabs value={section} onChange={setSection} tabs={[
+            { id: 'tickets', label: 'Resolved tickets', count: state.history.length, icon: 'doc' },
+            { id: 'codes', label: 'Resolution codes', count: state.codes.length, icon: 'book' },
+            { id: 'handover', label: 'Handover log', count: unacked || undefined, icon: 'clip' },
+          ]} />
+          {section === 'tickets' && <Tickets onPopOut={openTicket} />}
+          {section === 'codes' && <Codes onOpen={openCode} />}
+          {section === 'handover' && <HandoverLog />}
+        </>
+      )}
+      {cur?.kind === 'ticket' && <TicketPage key={cur.key} h={cur.h} onOpen={openTicket} onCode={openCode} onClose={() => close(cur.key)} />}
+      {cur?.kind === 'code' && <CodePage key={cur.key} c={cur.c} onOpen={openTicket} onClose={() => close(cur.key)} />}
     </>
   )
 }
 
-function Tickets() {
+function TicketHead({ h }) {
+  return <><div className="row"><span className="mono">{h.id}</span><Prio p={h.priority} /><span className={`pill ${h.slaMet ? 'good' : 'crit'}`}>{h.slaMet ? 'SLA met' : 'SLA breached'}</span></div><h3 style={{ font: '600 17px/1.3 var(--f-cond)' }}>{h.desc}</h3></>
+}
+const ticketSub = (h) => <span className="small ink2">{h.businessApp} · {h.productGroup} · {h.channel} · {byId[h.analyst]?.name} ({h.assignmentGroup})</span>
+
+// A popped-out ticket: the same journey as the drawer, as a full page.
+function TicketPage({ h, onOpen, onCode, onClose }) {
+  return (
+    <section className="card ticket-page">
+      <div className="card-h" style={{ alignItems: 'flex-start' }}>
+        <div className="stack" style={{ gap: 4, flex: 1, minWidth: 0 }}><TicketHead h={h} />{ticketSub(h)}</div>
+        <button className="btn sm" onClick={onClose}><Icon name="x" size={14} />Close tab</button>
+      </div>
+      <div className="card-b stack lg"><JourneyBody h={h} onOpen={onOpen} onCode={onCode} /></div>
+    </section>
+  )
+}
+
+function Tickets({ onPopOut }) {
   const { state } = useStore()
   const [f, setF] = useState({ q: '', pg: 'All', ch: 'All', app: 'All', fcr: 'All', flag: 'All', range: '30' })
   const [open, setOpen] = useState(null)
@@ -110,28 +170,35 @@ function Tickets() {
         </div>
         {rows.length > 200 && <div className="small muted" style={{ padding: 10 }}>Showing the 200 most recent of {rows.length}. Narrow the filters to see more.</div>}
       </section>
-      {cur && <TicketJourney h={cur} onClose={() => setOpen(null)} onOpen={setOpen} />}
+      {cur && <TicketJourney h={cur} onClose={() => setOpen(null)} onOpen={setOpen} onPopOut={(id) => { setOpen(null); onPopOut(id) }} />}
     </>
   )
 }
 
-function TicketJourney({ h, onClose, onOpen }) {
+function TicketJourney({ h, onClose, onOpen, onPopOut }) {
+  return (
+    <Drawer onClose={onClose} title={<TicketHead h={h} />} sub={ticketSub(h)}
+      actions={<button className="icon-btn" onClick={() => onPopOut(h.id)} aria-label="Open in a new tab" title="Open in a new tab"><Icon name="external" size={16} /></button>}>
+      <JourneyBody h={h} onOpen={onOpen} />
+    </Drawer>
+  )
+}
+
+function JourneyBody({ h, onOpen, onCode }) {
   const { state } = useStore()
   const info = state.codes.find((c) => c.code === h.code)
   const a = useAssist(h.desc, h.code, h.id)
   const qaItems = [['Documentation complete', h.qa.documentation], ['Customer contact logged', h.qa.contactLogged], ['Correct resolution code', h.qa.correctCode], ['Fix validated with customer', h.qa.validated], ['SLA met', h.slaMet]]
   const score = Math.round((qaItems.filter((x) => x[1]).length / qaItems.length) * 100)
   return (
-    <Drawer onClose={onClose}
-      title={<><div className="row"><span className="mono">{h.id}</span><Prio p={h.priority} /><span className={`pill ${h.slaMet ? 'good' : 'crit'}`}>{h.slaMet ? 'SLA met' : 'SLA breached'}</span></div><h3 style={{ font: '600 17px/1.3 var(--f-cond)' }}>{h.desc}</h3></>}
-      sub={<span className="small ink2">{h.businessApp} · {h.productGroup} · {h.channel} · {byId[h.analyst]?.name} ({h.assignmentGroup})</span>}>
+    <>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10 }}>
         {[['EZE MTTR', fmtH(h.ezeH)], ['RES MTTR', fmtH(h.resH)], ['Lost time', fmtH(h.lostH)], ['FCR', h.fcr ? 'Yes' : 'No'], ['Transfers', h.transfers]].map(([k, v]) => (
           <div key={k} className="stack" style={{ gap: 2 }}><span className="eyebrow">{k}</span><b className="num" style={{ fontSize: 18, fontFamily: 'var(--f-cond)' }}>{v}</b></div>
         ))}
       </div>
       <div className="callout accent" style={{ flexDirection: 'column', gap: 4 }}>
-        <div className="row"><span className="eyebrow">Resolution code</span><span className="code-chip" style={{ fontSize: 14 }}>{h.code}</span>{info?.automatable && <span className="pill plain"><Icon name="bolt" size={11} />Automatable</span>}</div>
+        <div className="row"><span className="eyebrow">Resolution code</span><span className="code-chip" style={{ fontSize: 14 }}>{h.code}</span>{onCode && <button className="btn ghost sm" onClick={() => onCode(h.code)}><Icon name="book" size={13} />Open code</button>}{info?.automatable && <span className="pill plain"><Icon name="bolt" size={11} />Automatable</span>}</div>
         <b>{info?.title}</b>
         {info && <span className="small ink2">{ROOT_CAUSES[info.cause].label} · {ROOT_CAUSES[info.cause].subs[info.sub]} · {info.runbook}</span>}
       </div>
@@ -175,11 +242,11 @@ function TicketJourney({ h, onClose, onOpen }) {
         ))}
         {!a.similar.length && <span className="muted small">No close matches.</span>}
       </div>
-    </Drawer>
+    </>
   )
 }
 
-function Codes() {
+function Codes({ onOpen }) {
   const { state } = useStore()
   const [cat, setCat] = useState('All')
   const stats = useMemo(() => state.codes.map((c) => {
@@ -201,8 +268,8 @@ function Codes() {
           <thead><tr><th>Code</th><th>Resolution</th><th>Root cause</th><th>Runbook</th><th className="r">Uses</th><th className="r">Avg RES MTTR</th><th className="r">FCR rate</th><th>Last used</th><th>Automation</th></tr></thead>
           <tbody>
             {stats.map((c) => (
-              <tr key={c.code}>
-                <td><span className="code-chip">{c.code}</span></td>
+              <tr key={c.code} className="click" onClick={() => onOpen(c.code)} title="Open in a new tab">
+                <td className="nowrap"><span className="code-chip">{c.code}</span> <Icon name="external" size={12} /></td>
                 <td style={{ minWidth: 220 }}>{c.title}</td>
                 <td className="nowrap small">{ROOT_CAUSES[c.cause].label} · {ROOT_CAUSES[c.cause].subs[c.sub]}</td>
                 <td className="nowrap small">{c.runbook}</td>
@@ -245,5 +312,78 @@ function HandoverLog() {
         </table>
       </div>
     </section>
+  )
+}
+
+// A resolution code opened in its own tab: its runbook, how it performs and
+// the tickets it closed.
+function CodePage({ c, onOpen, onClose }) {
+  const { state } = useStore()
+  const { nav } = useNav()
+  const used = state.history.filter((h) => h.code === c.code)
+  const recent = used.filter((h) => h.resolvedAt >= state.now - 30 * DAY)
+  const live = pageForCode(state.kb, state.kb.kbs.map((k) => k.id), c.code)
+  const draft = !live && pageForCode(state.kb, state.kb.kbs.map((k) => k.id), c.code, { published: false })
+  const steps = live && (chunksOf(live).find((x) => /steps|workaround/i.test(x.heading)) || chunksOf(live)[0])
+  const apps = Object.entries(used.reduce((m, h) => ({ ...m, [h.businessApp]: (m[h.businessApp] || 0) + 1 }), {})).sort((a, b) => b[1] - a[1])
+  const fcr = used.length ? used.filter((u) => u.fcr).length / used.length : NaN
+  return (
+    <>
+      <section className="card">
+        <div className="card-h" style={{ alignItems: 'flex-start' }}>
+          <div className="stack" style={{ gap: 6, flex: 1, minWidth: 0 }}>
+            <div className="row"><span className="code-chip" style={{ fontSize: 14 }}>{c.code}</span>{c.automatable ? <span className="pill accent"><Icon name="bolt" size={11} />Auto-fix</span> : <span className="pill plain">Manual</span>}</div>
+            <h2>{c.title}</h2>
+            <span className="small ink2">{ROOT_CAUSES[c.cause].label} › {ROOT_CAUSES[c.cause].subs[c.sub]} · {c.runbook}{c.automatable ? ` · ${c.fix}` : ''}</span>
+          </div>
+          <button className="btn sm" onClick={onClose}><Icon name="x" size={14} />Close tab</button>
+        </div>
+        <div className="card-b grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
+          {[['Uses', used.length], ['Last 30 days', recent.length], ['Avg RES MTTR', fmtH(avg(used.map((u) => u.resH)))], ['FCR rate', isNaN(fcr) ? '—' : Math.round(fcr * 100) + '%'], ['Last used', used.length ? fmtDate(Math.max(...used.map((u) => u.resolvedAt))) : '—']].map(([k, v]) => (
+            <div key={k} className="stack" style={{ gap: 2 }}><span className="eyebrow">{k}</span><b className="num" style={{ fontSize: 18 }}>{v}</b></div>
+          ))}
+        </div>
+      </section>
+      <section className="grid g-3-1">
+        <div className="card">
+          <div className="card-h"><h3>Runbook</h3>{live && <span className="muted small">{live.live.title} · v{live.live.version}</span>}<span className="spacer" />
+            {(live || draft) && <button className="btn ghost sm" onClick={() => nav('kb', { page: (live || draft).id })}><Icon name="book" size={14} />Open in Knowledge Base</button>}
+          </div>
+          <div className="card-b">
+            {steps ? <DocText text={steps.text} />
+              : draft ? <div className="callout warn small"><Icon name="alert" size={15} /><span><b>{draft.draft.title}</b> is a draft only. Copilot and analysts can't rely on it until it's published.</span></div>
+              : <div className="callout warn small"><Icon name="alert" size={15} /><span>No knowledge base page covers this code yet.</span><span className="spacer" /><button className="btn sm" onClick={() => nav('kb', { create: c.runbook, code: c.code })}><Icon name="plus" size={13} />Write it</button></div>}
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-h"><h3>Business apps</h3></div>
+          <div className="card-b stack">
+            {apps.map(([a, n]) => <div key={a} className="row small"><span style={{ flex: 1 }}>{a}</span><b className="num">{n}</b></div>)}
+            {!apps.length && <span className="muted small">Not used yet.</span>}
+          </div>
+        </div>
+      </section>
+      <section className="card">
+        <div className="card-h"><h3>Tickets closed with this code</h3><span className="muted small">most recent first · click to open in a tab</span></div>
+        <div className="tbl-wrap tbl-scroll">
+          <table className="tbl">
+            <thead><tr><th>Ticket</th><th>Solved by</th><th>Business app</th><th>Resolved</th><th className="r">RES MTTR</th><th>SLA</th></tr></thead>
+            <tbody>
+              {used.slice(0, 50).map((h) => (
+                <tr key={h.id} className="click" onClick={() => onOpen(h.id)}>
+                  <td className="nowrap"><span className="mono">{h.id}</span><div className="small muted" style={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.desc}</div></td>
+                  <td className="nowrap">{byId[h.analyst]?.name || '—'}</td>
+                  <td className="nowrap">{h.businessApp}</td>
+                  <td className="nowrap small">{fmtDateTime(h.resolvedAt)}</td>
+                  <td className="r">{fmtH(h.resH)}</td>
+                  <td><span className={`pill ${h.slaMet ? 'good' : 'crit'}`}>{h.slaMet ? 'Met' : 'Breached'}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!used.length && <div className="empty">No tickets have used this code yet.</div>}
+        </div>
+      </section>
+    </>
   )
 }

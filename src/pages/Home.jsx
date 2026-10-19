@@ -40,7 +40,7 @@ export default function Home({ route }) {
   const { nav } = useNav()
   const me = currentUser(state)
   const lead = state.role === 'lead'
-  const [tab, setTab] = useState(route.approval ? 'approvals' : lead ? 'queue' : 'mine')
+  const [tab, setTab] = useState(route.tab || (route.approval ? 'approvals' : lead ? 'queue' : 'mine'))
   const [drawer, setDrawer] = useState(route.ticket || null)
   const [resolving, setResolving] = useState(null)
   const m = queueMetrics(state.tickets, state.analysts, state.now)

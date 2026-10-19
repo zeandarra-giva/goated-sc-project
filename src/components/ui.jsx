@@ -42,6 +42,16 @@ const PATHS = {
   info: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 8v5m0-8.5v.5',
   flag: 'M5 21V4m0 0h11l-2 4 2 4H5',
   moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
+  folder: 'M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z',
+  send: 'M4 12L20 4l-5 16-3-7zm8 1l8-9',
+  upload: 'M12 15V4m-5 5l5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4',
+  edit: 'M4 20h4L19 9l-4-4L4 16zm9-13l4 4',
+  table: 'M4 5h16v14H4zM4 10h16M4 15h16M10 5v14',
+  trash: 'M4 7h16M9 7V4h6v3m-8 0l1 13h8l1-13',
+  external: 'M14 4h6v6m0-6l-9 9m7 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
+  grid: 'M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z',
+  list: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
+  folderOpen: 'M3 7V5.5A1.5 1.5 0 0 1 4.5 4H9l2 2h7.5A1.5 1.5 0 0 1 20 7.5V9M3 7v11h15l3-9H6z',
 }
 
 // Solid versions for decorative use (KPI card backgrounds). Cut-outs use evenodd.
@@ -59,6 +69,8 @@ const FILLED = {
   cal: 'M6 1h3v3H6zM15 1h3v3h-3zM2.5 4h19v18.5h-19zM5 9v11h14V9zM7 11h3.2v3.2H7zM11.4 11h3.2v3.2h-3.2zM7 15.4h3.2v3.2H7z',
   user: 'M12 1.5a5 5 0 1 1 0 10 5 5 0 0 1 0-10zM2.5 22.5a9.5 9.5 0 0 1 19 0z',
   bell: 'M12 1a7 7 0 0 1 7 7c0 7 3.5 9.5 3.5 9.5h-21S5 15 5 8a7 7 0 0 1 7-7zM8.8 19.5h6.4a3.2 3.2 0 0 1-6.4 0z',
+  book: 'M1.5 3.5H9a3.5 3.5 0 0 1 3 1.7 3.5 3.5 0 0 1 3-1.7h7.5V19H15a2.5 2.5 0 0 0-2 1h-2a2.5 2.5 0 0 0-2-1H1.5z',
+  table: 'M2.5 3.5h19v17h-19zM5 9.5v3.2h4V9.5zM11 9.5v3.2h8V9.5zM5 14.8V18h4v-3.2zM11 14.8V18h8v-3.2z',
 }
 
 export function Icon({ name, size = 18, stroke = 1.8, filled }) {

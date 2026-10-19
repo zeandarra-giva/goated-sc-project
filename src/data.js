@@ -538,3 +538,28 @@ export function similarity(a, b) {
   A.forEach((w) => B.has(w) && inter++)
   return inter / Math.max(1, Math.min(A.size, B.size))
 }
+
+// Resolution Assist: keyword overlap against resolved history picks similar
+// incidents; the resolution codes they used vote for the likely fix.
+export function computeAssist(history, codes, desc, hintCode, excludeId) {
+  const sims = history
+    .filter((h) => h.id !== excludeId)
+    .map((h) => ({ h, s: similarity(desc, h.desc) }))
+    .filter((x) => x.s > 0.25)
+    .sort((a, b) => b.s - a.s || b.h.resolvedAt - a.h.resolvedAt)
+  const votes = {}
+  sims.slice(0, 25).forEach(({ h, s }) => (votes[h.code] = (votes[h.code] || 0) + s))
+  if (hintCode && !Object.keys(votes).length) votes[hintCode] = 1
+  const total = Object.values(votes).reduce((a, b) => a + b, 0) || 1
+  const ranked = Object.entries(votes).sort((a, b) => b[1] - a[1]).map(([code, v]) => ({ code, conf: v / total, info: codes.find((c) => c.code === code) })).filter((r) => r.info)
+  const top = ranked[0]
+  const sameCode = top ? sims.filter((x) => x.h.code === top.code).map((x) => x.h) : []
+  return {
+    similar: sims.slice(0, 5).map((x) => ({ ...x.h, score: x.s })),
+    ranked: ranked.slice(0, 3),
+    top,
+    typicalRes: sameCode.length ? sameCode.reduce((s, h) => s + h.resH, 0) / sameCode.length : null,
+    fcrRate: sameCode.length ? sameCode.filter((h) => h.fcr).length / sameCode.length : null,
+    sample: sims.length,
+  }
+}

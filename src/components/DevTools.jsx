@@ -44,6 +44,10 @@ export default function DevTools() {
             </div>
           </div>
           <div className="stack">
+            <span className="eyebrow">Knowledge base</span>
+            <label className="check small"><input type="checkbox" checked={state.devFailIndex} onChange={(e) => dispatch({ type: 'devFailIndex', on: e.target.checked })} />Fail the next publish (indexing timeout)</label>
+          </div>
+          <div className="stack">
             <span className="eyebrow">Data</span>
             <div className="dev-actions">
               <button className="btn sm danger" onClick={() => dispatch({ type: 'reset' })}><Icon name="refresh" size={14} />Reset sample data</button>
