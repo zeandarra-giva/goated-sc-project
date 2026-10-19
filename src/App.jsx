@@ -11,7 +11,8 @@ import Team from './pages/Team.jsx'
 import Settings from './pages/Settings.jsx'
 import KnowledgeBase from './pages/KnowledgeBase.jsx'
 import Copilot from './pages/Copilot.jsx'
-import SignIn from './pages/SignIn.jsx'
+import SignIn, { WorkspacePicker } from './pages/SignIn.jsx'
+import { workspaceById } from './workspaces.js'
 
 // Account profile is reached from the profile menu at the bottom of the sidebar.
 const PAGES = [
@@ -31,6 +32,9 @@ export const useNav = () => useContext(NavCtx)
 const SESSION_KEY = 'scope-session'
 const readSession = () => { try { return localStorage.getItem(SESSION_KEY) } catch { return null } }
 const writeSession = (role) => { try { role ? localStorage.setItem(SESSION_KEY, role) : localStorage.removeItem(SESSION_KEY) } catch { /* storage blocked */ } }
+const WS_KEY = 'scope-workspace'
+const readWs = () => { try { return workspaceById(localStorage.getItem(WS_KEY))?.id || null } catch { return null } }
+const writeWs = (id) => { try { id ? localStorage.setItem(WS_KEY, id) : localStorage.removeItem(WS_KEY) } catch { /* storage blocked */ } }
 
 export default function App() {
   const { state, dispatch } = useStore()
@@ -48,8 +52,14 @@ export default function App() {
   useEffect(() => { if (session && session !== state.role) dispatch({ type: 'role', role: session }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   // Keep the session in step when the Dev panel switches role.
   useEffect(() => { if (session && session !== state.role) { setSession(state.role); writeSession(state.role) } }, [state.role]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [wsId, setWsId] = useState(readWs)
+  const ws = workspaceById(wsId)
+  // Order: pick a workspace → sign in to it → land on its Home.
+  const pickWs = (id) => { writeWs(id); setWsId(id) }
   const signIn = (role) => { dispatch({ type: 'role', role }); writeSession(role); setSession(role); setSignedOut(false); nav('home') }
   const signOut = () => { writeSession(null); setSession(null); setSignedOut(true) }
+  // Each workspace is its own sign-in, so switching signs you out and returns to the picker.
+  const switchWs = () => { writeSession(null); setSession(null); setSignedOut(false); pickWs(null) }
   const page = PAGES.find((p) => p.id === route.page)
   // On phones the nav is a horizontal strip; keep the current page's button in view.
   useEffect(() => {
@@ -57,7 +67,8 @@ export default function App() {
     const cur = strip?.querySelector('[aria-current="page"]')
     if (strip && cur && strip.scrollWidth > strip.clientWidth) strip.scrollLeft = cur.offsetLeft - strip.offsetLeft - 12
   }, [route.page, session])
-  if (!session) return <SignIn onSignIn={signIn} signedOut={signedOut} />
+  if (!ws) return <WorkspacePicker onPick={pickWs} />
+  if (!session) return <SignIn ws={ws} onSignIn={signIn} signedOut={signedOut} onChangeWs={() => { setSignedOut(false); pickWs(null) }} />
   const breached = state.tickets.filter((t) => slaInfo(t, state.now).status === 'Breached').length
 
   return (
@@ -65,10 +76,10 @@ export default function App() {
       <div className="app">
         <nav className="rail" aria-label="Main" data-tour="rail">
           <div className="brand">
-            <div className="brand-mark">SC</div>
+            <div className={`brand-mark ws-${ws.tone}`}>{ws.short}</div>
             <div>
               <div className="brand-name">scope</div>
-              <div className="brand-sub">Solution Center Hub</div>
+              <div className="brand-sub">{ws.name}{ws.home ? ' Hub' : ''}</div>
             </div>
           </div>
           <div className="rail-nav">
@@ -86,15 +97,18 @@ export default function App() {
           ))}
           </div>
           <div className="rail-foot" />
-          <ProfileMenu active={route.page === 'settings'} onSettings={() => nav('settings')} onLogout={signOut} />
+          <ProfileMenu ws={ws} active={route.page === 'settings'} onSettings={() => nav('settings')} onSwitch={switchWs} onLogout={signOut} />
         </nav>
         <div className="main">
-          <Header page={page} />
+          <Header page={page} ws={ws} />
           <main className="page" key={route.page}>
             <div className="page-head">
               <h1>{page.title}</h1>
               <p>{page.desc}</p>
             </div>
+            {!ws.home && (
+              <div className="callout accent ws-demo"><Icon name="info" size={16} /><span><b>{ws.name} workspace (demo).</b> It runs the same modules as Solution Center for {ws.groups.join(', ')}. This prototype only has Solution Center sample data, so that's what you see here.</span></div>
+            )}
             {route.page === 'home' && <Home route={route} />}
             {route.page === 'explorer' && <Explorer route={route} />}
             {route.page === 'reports' && <Reports route={route} />}
@@ -123,12 +137,12 @@ function useOutside(open, setOpen) {
   return ref
 }
 
-function Header({ page }) {
+function Header({ page, ws }) {
   const { state } = useStore()
   const now = new Date(state.now)
   return (
     <header className="header">
-      <nav className="crumb" aria-label="Breadcrumb"><span className="crumb-back" aria-hidden="true"><Icon name={page.icon} size={16} /></span><span className="crumb-root">Scope</span><span className="crumb-sep"><Icon name="arrowR" size={14} /></span><b>{page.label}</b></nav>
+      <nav className="crumb" aria-label="Breadcrumb"><span className="crumb-back" aria-hidden="true"><Icon name={page.icon} size={16} /></span><span className="crumb-root">{ws.name}</span><span className="crumb-sep"><Icon name="arrowR" size={14} /></span><b>{page.label}</b></nav>
       <div className="header-center"><SnowStatus /></div>
       <div className="header-right">
       <div className="date-chip" title="Local time">
@@ -274,7 +288,7 @@ function ThemeToggle() {
   )
 }
 
-function ProfileMenu({ active, onSettings, onLogout }) {
+function ProfileMenu({ ws, active, onSettings, onSwitch, onLogout }) {
   const { state } = useStore()
   const me = currentUser(state)
   const [open, setOpen] = useState(false)
@@ -297,6 +311,7 @@ function ProfileMenu({ active, onSettings, onLogout }) {
             </div>
           </div>
           <button role="menuitem" className="menu-item" onClick={() => { setOpen(false); onSettings() }}><Icon name="user" size={16} />Account profile</button>
+          <button role="menuitem" className="menu-item" onClick={() => { setOpen(false); onSwitch() }}><Icon name="swap" size={16} />Switch workspace<span className="spacer" /><span className="muted small">{ws.short}</span></button>
           <button role="menuitem" className="menu-item danger" onClick={() => { setOpen(false); onLogout() }}><Icon name="logout" size={16} />Log out</button>
         </div>
       )}
