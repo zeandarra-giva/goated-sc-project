@@ -226,6 +226,14 @@ td.no { color: var(--crit); font-weight: 600; white-space: nowrap; }
 .algo .card h3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .formula { font: 13px var(--mono); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; margin: 8px 0; color: var(--ink); overflow-x: auto; white-space: pre; }
 
+/* Token budget calculator */
+.calc { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.calc label { display: grid; grid-template-rows: 1fr auto; align-items: end; gap: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.calc input { font: 15px var(--sans); padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); min-width: 0; }
+.calc input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.calc-out { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
 footer { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
 @media (max-width: 620px) { .card { padding: 16px; } .tray { padding: 12px; } .top .brand { display: none; } }
 </style>
@@ -242,6 +250,7 @@ footer { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; color: var(
       <a href="#rollout">Rollout steps</a>
       <a href="#fallback">Fallback</a>
       <a href="#controls">Controls</a>
+      <a href="#tokens">Token budget</a>
       <a href="#open">Open questions</a>
     </nav>
     <button class="theme-btn" id="theme" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
@@ -791,9 +800,97 @@ confidence = votes[code] ÷ Σ votes</div>
   </div>
 </section>
 
+<!-- ================= TOKEN BUDGET ================= -->
+<section id="tokens">
+  <div class="kicker">08 · Token budget</div>
+  <h2>How many tokens Copilot will use</h2>
+  <p class="sub">An estimate for the design in section 04, where Scope collects the evidence and the model is called <b>once per question</b>. That means tokens scale with how many questions are asked, not with how many tickets come in. The sizes below are measured from the prototype. The usage volumes are assumptions: replace them with the question log from Phase 2.</p>
+
+  <div class="grid g3">
+    <div class="card"><h3>Uses tokens</h3><p class="small" style="margin:0">Only step 6, <b>Call the model</b>. That covers Copilot answers on the Copilot page and in the ticket workspace, including "Ask why" on an insight card.</p></div>
+    <div class="card"><h3>Uses none</h3><p class="small" style="margin:0">Explorer, Template search, KB search, Resolution Assist, the insight cards themselves, rules-only mode, and any answer that fails the checks in step 7, because it falls back to rules with no retry.</p></div>
+    <div class="card"><h3>Easy to miss</h3><p class="small" style="margin:0">Phase 3 evaluation and red-team runs. Phase 4 shadow mode, where every answer is generated and paid for but not shown. Follow-up questions, which send the current thread again.</p></div>
+  </div>
+
+  <h3 style="margin-top:28px">What goes into one call</h3>
+  <p class="sub small">Approximate counts at about 4 characters per token. "Measured" figures come from the prototype's own data and code.</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Part (step 5)</th><th class="num">Tokens</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Instructions, guardrails and the answer schema</td><td class="num">~800</td><td>The same on every call, so it can be cached if the gateway supports it. The tool descriptions alone measure ~225 tokens and the guardrail text ~180.</td></tr>
+        <tr><td>KB passages (top 4)</td><td class="num">1,200–2,000</td><td>Sample chunks measure 41 tokens on average (110 max). Real runbook sections are more likely 300–500 each, so 4 passages come to 1,200–2,000.</td></tr>
+        <tr><td>Ticket, queue and data fields</td><td class="num">200–400</td><td>Named fields only. The full queue would be <b>~4,300</b> tokens (22 tickets × ~194), so it must never be sent whole.</td></tr>
+        <tr><td>History and metrics</td><td class="num">~300</td><td>Send totals, not rows. One raw history row measures ~380 tokens.</td></tr>
+        <tr><td>Question and thread carry-over</td><td class="num">50–2,000</td><td>A first question is ~50 tokens. A follow-up includes the earlier turns of the same thread.</td></tr>
+        <tr><td><b>Answer (output)</b></td><td class="num">200–800</td><td>Capped by <code>max_tokens: 800</code> in step 6. If the approved model reasons before answering, that reasoning is also billed as output.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin-top:28px">Per question, by type</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Question type</th><th>Example</th><th class="num">Share</th><th class="num">Input</th><th class="num">Output</th></tr></thead>
+      <tbody>
+        <tr><td>Lookup</td><td>"What is the P2 SLA?" · "Who is online?"</td><td class="num">40%</td><td class="num">~2,000</td><td class="num">~200</td></tr>
+        <tr><td>Ticket or KB help</td><td>"How do I fix this?" · VPN disconnects</td><td class="num">45%</td><td class="num">~4,000</td><td class="num">~450</td></tr>
+        <tr><td>Handover or deep dive</td><td>"Draft my shift handover" · "Why is Payments Hub slow?"</td><td class="num">15%</td><td class="num">~8,000</td><td class="num">~800</td></tr>
+        <tr><td><b>Weighted average</b></td><td>Includes ~30% follow-ups that carry the thread</td><td class="num"></td><td class="num"><b>~4,500</b></td><td class="num"><b>~400</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin-top:28px">Per month</h3>
+  <p class="sub small">30 days, because the Solution Center runs around the clock. The cost columns use public list prices for three model tiers (per million tokens: $0.10/$0.50, $2/$10 and $4/$20, input/output) <b>only as a reference</b>. The real figure is the internal rate the approved gateway charges.</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Scenario</th><th class="num">Questions / day</th><th class="num">Input / month</th><th class="num">Output / month</th><th class="num">Small tier</th><th class="num">Mid tier</th><th class="num">Large tier</th></tr></thead>
+      <tbody>
+        <tr><td>Pilot (Phase 4, one team)</td><td class="num">~50</td><td class="num">6.8M</td><td class="num">0.6M</td><td class="num">~$1</td><td class="num">~$20</td><td class="num">~$39</td></tr>
+        <tr><td><b>Expected</b> (12 analysts × 15, 2 leads × 25)</td><td class="num"><b>~230</b></td><td class="num"><b>31M</b></td><td class="num"><b>2.8M</b></td><td class="num">~$5</td><td class="num"><b>~$90</b></td><td class="num">~$179</td></tr>
+        <tr><td>Heavy (~30 users, ~33 questions each)</td><td class="num">~1,000</td><td class="num">135M</td><td class="num">12M</td><td class="num">~$20</td><td class="num">~$390</td><td class="num">~$780</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin-top:28px">Try your own numbers</h3>
+  <div class="tray demo">
+    <div class="calc" id="calc">
+      <label>Users<input type="number" min="0" id="c-users" value="14"></label>
+      <label>Questions / user / day<input type="number" min="0" step="any" id="c-q" value="16.4"></label>
+      <label>Days / month<input type="number" min="0" id="c-days" value="30"></label>
+      <label>Input tokens / question<input type="number" min="0" id="c-in" value="4500"></label>
+      <label>Output tokens / question<input type="number" min="0" id="c-out" value="400"></label>
+      <label>$ per 1M input<input type="number" min="0" step="any" id="c-pin" value="2"></label>
+      <label>$ per 1M output<input type="number" min="0" step="any" id="c-pout" value="10"></label>
+    </div>
+    <div class="calc-out" id="calc-out"></div>
+  </div>
+
+  <div class="grid g2" style="margin-top:12px">
+    <div class="callout warn"><b>What would multiply it</b>
+      <ul class="small" style="margin:4px 0 0">
+        <li><strong>Letting the model call tools itself.</strong> Each tool round trip resends everything so far. In the prototype's tool flow (1–4 tools per question), that comes to roughly 11k input and 1k output per question: about 2.5× the input of this design.</li>
+        <li><strong>Sending raw data:</strong> a whole queue or history rows instead of named fields and totals.</li>
+        <li><strong>Long threads.</strong> Cap the turns per thread, or start a new thread per ticket.</li>
+        <li><strong>Reasoning output</strong> on models that think before they answer.</li>
+      </ul>
+    </div>
+    <div class="callout good"><b>What keeps it low</b>
+      <ul class="small" style="margin:4px 0 0">
+        <li>Rules answer what they can. Explorer, Template search and data-table lookups never call the model.</li>
+        <li>A fixed prompt prefix (instructions and schema) that the gateway can cache.</li>
+        <li>Choose the model per intent: a smaller tier for lookups and a larger one only for handovers and deep dives.</li>
+        <li>Per-user and per-day token budgets at the gateway, with the kill switch when they're exceeded.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <!-- ================= OPEN ================= -->
 <section id="open">
-  <div class="kicker">08 · Open questions</div>
+  <div class="kicker">09 · Open questions</div>
   <h2>To confirm before Phase 0 closes</h2>
   <div class="grid g2">
     <div class="card"><ol class="small" style="margin:0">
@@ -807,6 +904,7 @@ confidence = votes[code] ÷ Σ votes</div>
       <li><b>Evaluation thresholds.</b> Which accuracy, citation and refusal rates does model risk want for the pilot?</li>
       <li><b>Audit retention.</b> How long prompts and answers are kept, and who can read them.</li>
       <li><b>Labelling.</b> Required wording and placement for "AI-generated" in the UI.</li>
+      <li><b>Token chargeback.</b> What the gateway charges per million input and output tokens for the approved model, whether prompt caching is passed through, and what quota the intake record should request (the expected case in section 08 is ~31M input and ~3M output a month).</li>
     </ol></div>
   </div>
 </section>
@@ -967,6 +1065,28 @@ confidence = votes[code] ÷ Σ votes</div>
     chips.appendChild(b)
   })
   input.addEventListener('input', render)
+  render()
+})()
+
+// ---------- Token budget calculator ----------
+;(function () {
+  const ids = ['users', 'q', 'days', 'in', 'out', 'pin', 'pout']
+  const out = document.getElementById('calc-out')
+  const v = (id) => Math.max(0, Number(document.getElementById('c-' + id).value) || 0)
+  const big = (n) => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e8 ? 0 : 1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'k' : String(Math.round(n))
+  const usd = (n) => '$' + (n >= 100 ? Math.round(n).toLocaleString('en-US') : n.toFixed(2))
+  function render() {
+    const qDay = v('users') * v('q'), qMonth = qDay * v('days')
+    const tin = qMonth * v('in'), tout = qMonth * v('out')
+    const cost = tin / 1e6 * v('pin') + tout / 1e6 * v('pout')
+    const slot = (k, val, why) => '<div class="slot"><div class="k">' + k + '</div><div class="v">' + val + '</div><div class="why">' + why + '</div></div>'
+    out.innerHTML =
+      slot('Questions', big(qDay) + ' / day', big(qMonth) + ' a month') +
+      slot('Input tokens', big(tin) + ' / month', big(tin / Math.max(1, v('days'))) + ' a day') +
+      slot('Output tokens', big(tout) + ' / month', big(tout / Math.max(1, v('days'))) + ' a day') +
+      slot('Cost', usd(cost) + ' / month', qMonth ? usd(cost / qMonth * 1000) + ' per 1,000 questions' : 'no questions')
+  }
+  ids.forEach(function (id) { document.getElementById('c-' + id).addEventListener('input', render) })
   render()
 })()
 </script>
